@@ -1,0 +1,9 @@
+[tool.mypy]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["PySide6.*", "shiboken6.*"]
+ignore_missing_imports = true
+
+[tool.mypy]
+plugins = ["pyside6.mypy_plugin"]

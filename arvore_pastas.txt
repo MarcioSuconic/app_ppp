@@ -1,0 +1,27 @@
+app_ppp/
+├── models/
+│   ├── __init__.py
+│   ├── database.py
+│   ├── operacao.py
+│   ├── ambiente.py
+│   ├── equipamento.py
+│   ├── funcao.py
+│   ├── colaborador.py
+│   ├── tarefa.py
+│   └── relatorios.py
+├── views/
+│   ├── __init__.py
+│   └── excel_export.py
+├── ui/
+│   ├── __init__.py
+│   ├── main_window.py
+│   └── dialogs/
+│       ├── __init__.py
+│       ├── operacao_dialog.py
+│       ├── ambiente_dialog.py
+│       ├── equipamento_dialog.py
+│       ├── funcao_dialog.py
+│       ├── colaborador_dialog.py
+│       └── tarefa_dialog.py
+├── main.py
+└── requirements.txt
