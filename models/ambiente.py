@@ -24,15 +24,23 @@ class CrudAmbiente:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT a.id, a.nome, a.descricao, a.operacao_id, o.nome as operacao_nome 
+            SELECT a.id, a.nome, a.descricao, o.nome as operacao_nome 
             FROM ambiente a
             JOIN operacao o ON a.operacao_id = o.id
             ORDER BY o.nome, a.nome
         """)
         rows = cursor.fetchall()
         conn.close()
-        return [{"id": row["id"], "nome": row["nome"], "descricao": row["descricao"], 
-                "operacao_id": row["operacao_id"], "operacao_nome": row["operacao_nome"]} for row in rows]
+        
+        resultado = []
+        for row in rows:
+            resultado.append({
+                "id": row["id"],
+                "nome": row["nome"],
+                "operacao": row["operacao_nome"],
+                "descricao": row["descricao"] or ""
+            })
+        return resultado
     
     @staticmethod
     def listar_por_operacao(operacao_id):
@@ -47,10 +55,23 @@ class CrudAmbiente:
     def buscar_por_id(aid):
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, nome, descricao, operacao_id FROM ambiente WHERE id = ?", (aid,))
+        cursor.execute("""
+            SELECT a.id, a.nome, a.descricao, a.operacao_id, o.nome as operacao_nome 
+            FROM ambiente a
+            JOIN operacao o ON a.operacao_id = o.id
+            WHERE a.id = ?
+        """, (aid,))
         row = cursor.fetchone()
         conn.close()
-        return {"id": row["id"], "nome": row["nome"], "descricao": row["descricao"], "operacao_id": row["operacao_id"]} if row else None
+        if row:
+            return {
+                "id": row["id"],
+                "nome": row["nome"],
+                "descricao": row["descricao"],
+                "operacao_id": row["operacao_id"],
+                "operacao_nome": row["operacao_nome"]
+            }
+        return None
     
     @staticmethod
     def atualizar(aid, novo_nome, operacao_id, nova_descricao):
@@ -74,13 +95,11 @@ class CrudAmbiente:
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Verifica se existem equipamentos vinculados
         cursor.execute("SELECT COUNT(*) FROM equipamento WHERE ambiente_id = ?", (aid,))
         if cursor.fetchone()[0] > 0:
             conn.close()
             return False, "Não é possível excluir: existem equipamentos vinculados a este ambiente."
         
-        # Verifica se existem tarefas vinculadas
         cursor.execute("SELECT COUNT(*) FROM tarefa WHERE ambiente_id = ?", (aid,))
         if cursor.fetchone()[0] > 0:
             conn.close()

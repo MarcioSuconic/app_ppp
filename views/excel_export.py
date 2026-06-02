@@ -161,15 +161,26 @@ def gerar_relatorio_excel_com_abas_operacao(operacao_id, operacao_nome, caminho_
     
     # ========== ABA 1: Tarefas ==========
     ws1 = wb.create_sheet("Tarefas")
-    tarefas = ResumoOperacao.get_tarefas_por_operacao(operacao_id)
-    if tarefas:
-        ws1.append(["ID", "Tarefa", "Duração (h)", "Frequência", "Vezes/Mês", "Horas/Mês", "Função", "Ambiente", "Equipamento", "Observação"])
-        for t in tarefas:
-            ws1.append([t["id"], t["tarefa"], t["duracao_horas"], t["frequencia"], 
-                       t["vezes_mes"], t["horas_mes"], t["funcao"], t["ambiente"], 
-                       t["equipamento"], t["observacao"]])
-        for cell in ws1[1]:
-            cell.font = Font(bold=True)
+    cabecalho1 = ["Tarefa", "Função", "Colaborador", "Duração (h)", "Frequência", "Vezes/Mês", "Horas/Mês", "Operação", "Ambiente", "Equipamento", "Observação"]
+    ws1.append(cabecalho1)
+
+    for t in CrudTarefa.lista_completa_relatorio():
+        ws1.append([
+            t["tarefa"],
+            t["funcao"],
+            t["colaborador"],
+            round(t["duracao_minutos"] / 60, 1),
+            t["frequencia_tipo"],
+            round(t["vezes_mes"], 2),
+            round(t["horas_mes"], 2),
+            t["operacao"] or "-",
+            t["ambiente"] or "-",
+            t["equipamento"] or "-",
+            t["observacao"] or "-"
+        ])
+
+    for cell in ws1[1]:
+        cell.font = Font(bold=True)
     
     # ========== ABA 2: Equipamentos ==========
     ws2 = wb.create_sheet("Equipamentos")

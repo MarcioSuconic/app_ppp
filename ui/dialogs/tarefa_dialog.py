@@ -11,7 +11,7 @@ class TarefaDialog(QDialog):
         super().__init__(parent)
         self.tarefa_id = tarefa_id
         self.setWindowTitle("Nova Tarefa" if tarefa_id is None else "Editar Tarefa")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(550)
         
         layout = QVBoxLayout(self)
         
@@ -37,6 +37,9 @@ class TarefaDialog(QDialog):
         self.carregar_funcoes()
         self.funcao_combo.currentIndexChanged.connect(self.mostrar_aviso_funcionarios)
         form_layout.addRow("Função Responsável:*", self.funcao_combo)
+        
+        self.colaborador_combo = QComboBox()
+        form_layout.addRow("Colaborador:*", self.colaborador_combo)
         
         self.aviso_label = QLabel("")
         self.aviso_label.setStyleSheet("font-size: 11px;")
@@ -73,20 +76,26 @@ class TarefaDialog(QDialog):
     def mostrar_aviso_funcionarios(self):
         funcao_id = self.funcao_combo.currentData()
         if funcao_id:
-            if not CrudTarefa.validar_funcao_tem_colaborador(funcao_id):
-                self.aviso_label.setText("⚠️ Nenhum colaborador cadastrado com esta função. Cadastre um colaborador antes de criar a tarefa.")
-                self.aviso_label.setStyleSheet("color: red; font-size: 11px;")
-            else:
-                self.aviso_label.setText("✅ Função válida: há colaborador(es) disponível(eis).")
+            colaboradores = CrudTarefa.listar_colaboradores_por_funcao(funcao_id)
+            self.colaborador_combo.clear()
+            if colaboradores:
+                for colab in colaboradores:
+                    self.colaborador_combo.addItem(colab["nome"], colab["id"])
+                self.aviso_label.setText("✅ Função válida. Selecione um colaborador.")
                 self.aviso_label.setStyleSheet("color: green; font-size: 11px;")
+            else:
+                self.colaborador_combo.addItem("(Nenhum colaborador disponível)", None)
+                self.aviso_label.setText("⚠️ Nenhum colaborador com esta função. Cadastre um colaborador.")
+                self.aviso_label.setStyleSheet("color: red; font-size: 11px;")
         else:
+            self.colaborador_combo.clear()
             self.aviso_label.setText("")
     
     def carregar_ambientes(self):
         self.ambiente_combo.clear()
         self.ambiente_combo.addItem("(Nenhum)", None)
         for amb in CrudAmbiente.listar_todos():
-            texto = f"{amb['operacao_nome']} → {amb['nome']}"
+            texto = f"{amb['operacao']} → {amb['nome']}"
             self.ambiente_combo.addItem(texto, amb["id"])
     
     def carregar_equipamentos(self):
@@ -113,6 +122,11 @@ class TarefaDialog(QDialog):
                 self.funcao_combo.setCurrentIndex(func_idx)
                 self.mostrar_aviso_funcionarios()
             
+            if dados.get("colaborador_id"):
+                colab_idx = self.colaborador_combo.findData(dados["colaborador_id"])
+                if colab_idx >= 0:
+                    self.colaborador_combo.setCurrentIndex(colab_idx)
+            
             if dados["ambiente_id"]:
                 amb_idx = self.ambiente_combo.findData(dados["ambiente_id"])
                 if amb_idx >= 0:
@@ -134,6 +148,7 @@ class TarefaDialog(QDialog):
         duracao_minutos = int(self.duracao_horas.value() * 60)
         frequencia = self.frequencia_combo.currentText()
         funcao_id = self.funcao_combo.currentData()
+        colaborador_id = self.colaborador_combo.currentData()
         ambiente_id = self.ambiente_combo.currentData()
         equipamento_id = self.equipamento_combo.currentData()
         observacao = self.observacao_edit.toPlainText().strip()
@@ -142,20 +157,22 @@ class TarefaDialog(QDialog):
             QMessageBox.warning(self, "Aviso", "Selecione uma função responsável.")
             return
         
-        # VALIDAÇÃO ANTES DE SALVAR
+        if colaborador_id is None:
+            QMessageBox.warning(self, "Aviso", "Selecione um colaborador para executar esta tarefa.")
+            return
+        
         if not CrudTarefa.validar_funcao_tem_colaborador(funcao_id):
             QMessageBox.critical(self, "Erro de Validação", 
                                  "Não é possível salvar esta tarefa.\n\n"
-                                 f"Não há nenhum colaborador cadastrado com a função '{self.funcao_combo.currentText()}'.\n\n"
-                                 "Cadastre um colaborador e associe a esta função antes de criar a tarefa.")
+                                 f"Não há nenhum colaborador cadastrado com a função '{self.funcao_combo.currentText()}'.")
             return
         
         if self.tarefa_id is None:
             sucesso, msg = CrudTarefa.criar(nome, duracao_minutos, frequencia, funcao_id,
-                                           ambiente_id, equipamento_id, observacao)
+                                           colaborador_id, ambiente_id, equipamento_id, observacao)
         else:
             sucesso, msg = CrudTarefa.atualizar(self.tarefa_id, nome, duracao_minutos, frequencia,
-                                                funcao_id, ambiente_id, equipamento_id, observacao)
+                                                funcao_id, colaborador_id, ambiente_id, equipamento_id, observacao)
         
         if sucesso:
             QMessageBox.information(self, "Sucesso", msg)

@@ -2,25 +2,16 @@ from models.database import get_connection
 import sqlite3
 
 class CrudTarefa:
-    
     @staticmethod
     def validar_funcao_tem_colaborador(funcao_id):
         """Verifica se existe pelo menos um colaborador com esta função (como principal ou adicional)"""
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Verifica na tabela colaborador_funcao (funções adicionais)
-        cursor.execute("""
-            SELECT COUNT(*) FROM colaborador_funcao 
-            WHERE funcao_id = ?
-        """, (funcao_id,))
+        cursor.execute("SELECT COUNT(*) FROM colaborador_funcao WHERE funcao_id = ?", (funcao_id,))
         count_adicionais = cursor.fetchone()[0]
         
-        # Verifica na coluna funcao_principal_id (função principal)
-        cursor.execute("""
-            SELECT COUNT(*) FROM colaborador 
-            WHERE funcao_principal_id = ?
-        """, (funcao_id,))
+        cursor.execute("SELECT COUNT(*) FROM colaborador WHERE funcao_principal_id = ?", (funcao_id,))
         count_principais = cursor.fetchone()[0]
         
         conn.close()
@@ -44,21 +35,20 @@ class CrudTarefa:
     
     @staticmethod
     def calcular_vezes_mes(frequencia_tipo):
-        """Retorna quantas vezes por mês a tarefa ocorre (base 30 dias)"""
         if frequencia_tipo == 'diaria':
             return 30
         elif frequencia_tipo == 'semanal':
-            return 30 / 7  # 4.2857
+            return 30 / 7
         elif frequencia_tipo == 'quinzenal':
             return 2
         elif frequencia_tipo == 'mensal':
             return 1
-        else:  # unica
+        else:
             return 0
     
     @staticmethod
     def criar(nome, duracao_minutos, frequencia_tipo, funcao_id, 
-              ambiente_id=None, equipamento_id=None, observacao=""):
+              colaborador_id=None, ambiente_id=None, equipamento_id=None, observacao=""):
         if not nome or len(nome.strip()) == 0:
             return False, "Nome da tarefa não pode estar vazio."
         if duracao_minutos <= 0:
@@ -66,19 +56,18 @@ class CrudTarefa:
         if frequencia_tipo not in ['diaria', 'semanal', 'quinzenal', 'mensal', 'unica']:
             return False, "Frequência inválida."
         
-        # VALIDAÇÃO: existe colaborador com esta função?
         if not CrudTarefa.validar_funcao_tem_colaborador(funcao_id):
-            return False, f"Não é possível criar tarefa. Não há nenhum colaborador cadastrado com a função selecionada.\n\nCadastre um colaborador ou adicione esta função a um colaborador existente antes de criar tarefas para esta função."
+            return False, f"Não é possível criar tarefa. Não há nenhum colaborador cadastrado com a função selecionada."
         
         conn = get_connection()
         cursor = conn.cursor()
         try:
             cursor.execute("""
                 INSERT INTO tarefa 
-                (nome, duracao_minutos, frequencia_tipo, funcao_id, ambiente_id, equipamento_id, observacao)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (nome, duracao_minutos, frequencia_tipo, funcao_id, colaborador_id, ambiente_id, equipamento_id, observacao)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (nome.strip(), duracao_minutos, frequencia_tipo, funcao_id, 
-                  ambiente_id, equipamento_id, observacao))
+                  colaborador_id, ambiente_id, equipamento_id, observacao))
             conn.commit()
             return True, "Tarefa criada com sucesso."
         except Exception as e:
@@ -93,11 +82,13 @@ class CrudTarefa:
         cursor.execute("""
             SELECT t.*, 
                    f.nome as funcao_nome,
+                   c.nome as colaborador_nome,
                    a.nome as ambiente_nome,
                    op.nome as operacao_nome,
                    e.nome as equipamento_nome
             FROM tarefa t
             JOIN funcao f ON t.funcao_id = f.id
+            LEFT JOIN colaborador c ON t.colaborador_id = c.id
             LEFT JOIN ambiente a ON t.ambiente_id = a.id
             LEFT JOIN operacao op ON a.operacao_id = op.id
             LEFT JOIN equipamento e ON t.equipamento_id = e.id
@@ -111,20 +102,25 @@ class CrudTarefa:
     def buscar_por_id(tid):
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM tarefa WHERE id = ?", (tid,))
+        cursor.execute("""
+            SELECT t.*, f.nome as funcao_nome, c.nome as colaborador_nome
+            FROM tarefa t
+            JOIN funcao f ON t.funcao_id = f.id
+            LEFT JOIN colaborador c ON t.colaborador_id = c.id
+            WHERE t.id = ?
+        """, (tid,))
         row = cursor.fetchone()
         conn.close()
         return dict(row) if row else None
     
     @staticmethod
     def atualizar(tid, nome, duracao_minutos, frequencia_tipo, funcao_id,
-                  ambiente_id=None, equipamento_id=None, observacao=""):
+                  colaborador_id=None, ambiente_id=None, equipamento_id=None, observacao=""):
         if not nome or len(nome.strip()) == 0:
             return False, "Nome da tarefa não pode estar vazio."
         
-        # VALIDAÇÃO: existe colaborador com esta função?
         if not CrudTarefa.validar_funcao_tem_colaborador(funcao_id):
-            return False, f"Não é possível atualizar tarefa. Não há nenhum colaborador cadastrado com a função selecionada.\n\nCadastre um colaborador ou adicione esta função a um colaborador existente."
+            return False, f"Não é possível atualizar tarefa. Não há nenhum colaborador com esta função."
         
         conn = get_connection()
         cursor = conn.cursor()
@@ -132,10 +128,10 @@ class CrudTarefa:
             cursor.execute("""
                 UPDATE tarefa 
                 SET nome=?, duracao_minutos=?, frequencia_tipo=?, funcao_id=?, 
-                    ambiente_id=?, equipamento_id=?, observacao=?
+                    colaborador_id=?, ambiente_id=?, equipamento_id=?, observacao=?
                 WHERE id=?
             """, (nome.strip(), duracao_minutos, frequencia_tipo, funcao_id,
-                  ambiente_id, equipamento_id, observacao, tid))
+                  colaborador_id, ambiente_id, equipamento_id, observacao, tid))
             conn.commit()
             return True, "Tarefa atualizada com sucesso."
         except Exception as e:
@@ -158,7 +154,6 @@ class CrudTarefa:
     
     @staticmethod
     def horas_mensais_por_funcao():
-        """Retorna total de horas/mês por função baseado nas tarefas cadastradas"""
         conn = get_connection()
         cursor = conn.cursor()
         
@@ -180,13 +175,13 @@ class CrudTarefa:
     
     @staticmethod
     def lista_completa_relatorio():
-        """Retorna lista de tarefas para o relatório Excel"""
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT 
                 t.nome as tarefa,
                 f.nome as funcao,
+                c.nome as colaborador,
                 t.duracao_minutos,
                 t.frequencia_tipo,
                 CASE t.frequencia_tipo
@@ -210,6 +205,7 @@ class CrudTarefa:
                 t.observacao
             FROM tarefa t
             JOIN funcao f ON t.funcao_id = f.id
+            LEFT JOIN colaborador c ON t.colaborador_id = c.id
             LEFT JOIN ambiente a ON t.ambiente_id = a.id
             LEFT JOIN operacao op ON a.operacao_id = op.id
             LEFT JOIN equipamento e ON t.equipamento_id = e.id
@@ -217,4 +213,20 @@ class CrudTarefa:
         """)
         rows = cursor.fetchall()
         conn.close()
-        return [dict(row) for row in rows]
+        
+        resultado = []
+        for row in rows:
+            resultado.append({
+                "tarefa": row["tarefa"],
+                "funcao": row["funcao"],
+                "colaborador": row["colaborador"] if row["colaborador"] else "(não atribuído)",
+                "duracao_minutos": row["duracao_minutos"],
+                "frequencia_tipo": row["frequencia_tipo"],
+                "vezes_mes": row["vezes_mes"],
+                "horas_mes": row["horas_mes"],
+                "operacao": row["operacao"],
+                "ambiente": row["ambiente"],
+                "equipamento": row["equipamento"],
+                "observacao": row["observacao"]
+            })
+        return resultado

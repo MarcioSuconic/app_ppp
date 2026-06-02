@@ -17,10 +17,11 @@ from ui.dialogs.colaborador_dialog import ColaboradorDialog
 from ui.dialogs.tarefa_dialog import TarefaDialog
 
 class TableModel(QAbstractTableModel):
-    def __init__(self, data, headers):
+    def __init__(self, data, headers, keys=None):
         super().__init__()
         self._data = data
         self._headers = headers
+        self._keys = keys if keys else ([list(data[0].keys()) if data else []])
     
     def rowCount(self, parent=None):
         return len(self._data)
@@ -33,9 +34,13 @@ class TableModel(QAbstractTableModel):
             row = index.row()
             col = index.column()
             if row < len(self._data) and col < len(self._headers):
-                keys = list(self._data[row].keys())
-                if col < len(keys):
-                    value = self._data[row][keys[col]]
+                if col < len(self._keys):
+                    key = self._keys[col]
+                else:
+                    keys = list(self._data[row].keys())
+                    key = keys[col] if col < len(keys) else None
+                if key:
+                    value = self._data[row].get(key, "")
                     return str(value) if value is not None else ""
         return None
     
@@ -46,7 +51,6 @@ class TableModel(QAbstractTableModel):
         return None
 
 class MainWindow(QMainWindow):
-    
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PPP - Palmas Project Planner")
@@ -81,12 +85,12 @@ class MainWindow(QMainWindow):
         self.status_label.setStyleSheet("padding: 5px; background-color: #ecf0f1;")
         layout.addWidget(self.status_label)
         
-        # Tabela com melhorias de seleção
+        # Tabela
         self.tableView = QTableView()
         self.tableView.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
         self.tableView.setSelectionMode(QTableView.SelectionMode.SingleSelection)
         self.tableView.setAlternatingRowColors(True)
-        self.tableView.verticalHeader().setDefaultSectionSize(30)  # Altura da linha
+        self.tableView.verticalHeader().setDefaultSectionSize(30)
         self.tableView.setStyleSheet("""
             QTableView::item:selected {
                 background-color: #3498db;
@@ -110,9 +114,8 @@ class MainWindow(QMainWindow):
         self.btn_excluir.clicked.connect(self.excluir_registro)
         self.btn_refresh.clicked.connect(self.carregar_tabela)
         
-        # Atalhos de teclado
-        self.btn_editar.setShortcut("Return")   # Enter para editar
-        self.btn_excluir.setShortcut("Delete")  # Delete para excluir
+        self.btn_editar.setShortcut("Return")
+        self.btn_excluir.setShortcut("Delete")
         
         btn_layout.addWidget(self.btn_novo)
         btn_layout.addWidget(self.btn_editar)
@@ -122,7 +125,6 @@ class MainWindow(QMainWindow):
         
         self.carregar_tabela()
         self.mostrar_intro()
-
     
     def criar_menu(self):
         menubar = QMenuBar(self)
@@ -197,39 +199,54 @@ FILOSOFIA:
         if self.current_crud == "operacao":
             dados = CrudOperacao.listar_todos()
             headers = ["ID", "Nome", "Descrição"]
+            keys = ["id", "nome", "descricao"]
+            model = TableModel(dados, headers, keys)
+            
         elif self.current_crud == "ambiente":
             dados = CrudAmbiente.listar_todos()
             headers = ["ID", "Nome", "Operação", "Descrição"]
+            keys = ["id", "nome", "operacao", "descricao"]
+            model = TableModel(dados, headers, keys)
+            
         elif self.current_crud == "equipamento":
             dados = CrudEquipamento.listar_todos()
             headers = ["ID", "Nome", "Marca", "Modelo", "Capacidade", "Preço", "Ambiente"]
+            keys = ["id", "nome", "marca", "modelo", "capacidade", "preco_estimado", "ambiente_nome"]
+            model = TableModel(dados, headers, keys)
+            
         elif self.current_crud == "funcao":
             dados = CrudFuncao.listar_todos()
             headers = ["ID", "Nome"]
+            keys = ["id", "nome"]
+            model = TableModel(dados, headers, keys)
+            
         elif self.current_crud == "colaborador":
             dados = CrudColaborador.listar_todos()
-            # Corrige a visualização dos dados
             for d in dados:
                 d["funcao_principal_nome"] = d.get("funcao_principal_nome") or "(nenhuma)"
                 d["observacao"] = d.get("observacao") or "-"
             headers = ["ID", "Nome", "Sócio", "Função Principal", "Observação"]
+            keys = ["id", "nome", "eh_socio", "funcao_principal_nome", "observacao"]
+            model = TableModel(dados, headers, keys)
+            
         else:  # tarefa
             dados = CrudTarefa.listar_todos()
-            # Converte duracao_minutos para horas na exibição
             for d in dados:
                 horas = d["duracao_minutos"] / 60
                 d["duracao_minutos"] = f"{horas:.1f}h"
-            headers = ["ID", "Tarefa", "Duração", "Frequência", "Função", "Ambiente", "Equipamento"]
+                d["colaborador_nome"] = d.get("colaborador_nome") or "(não atribuído)"
+            headers = ["ID", "Tarefa", "Duração", "Frequência", "Função", "Colaborador", "Ambiente", "Equipamento"]
+            keys = ["id", "nome", "duracao_minutos", "frequencia_tipo", "funcao_nome", "colaborador_nome", "ambiente_nome", "equipamento_nome"]
+            model = TableModel(dados, headers, keys)
         
         if not dados:
             dados = []
         
-        model = TableModel(dados, headers)
         self.tableView.setModel(model)
         for i in range(len(headers)):
             self.tableView.horizontalHeader().setSectionResizeMode(i, QHeaderView.Stretch)
         
-        self.status_label.setText(f"✅ CRUD ativo: {self.status_label.text().split('|')[0].strip()} | 📊 {len(dados)} registro(s)")
+        self.status_label.setText(f"✅ {self.status_label.text().split('|')[0].strip()} | 📊 {len(dados)} registro(s)")
     
     def novo_registro(self):
         dialog = None
