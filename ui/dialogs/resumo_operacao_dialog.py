@@ -101,7 +101,7 @@ class ResumoOperacaoDialog(QDialog):
         # Tarefas da operação
         tarefas = ResumoOperacao.get_tarefas_por_operacao(operacao_id)
         if tarefas:
-            headers = ["ID", "Tarefa", "Duração (h)", "Frequência", "Vezes/Mês", "Horas/Mês", "Função", "Ambiente", "Equipamento", "Obs"]
+            headers = ["ID", "Tarefa", "Duração (h)", "Frequência", "Vezes/Mês", "Horas/Mês", "Função", "Colaborador", "Ambiente", "Equipamento", "Obs"]
             model = TableModelResumo(tarefas, headers)
             self.tab_tarefas.setModel(model)
             for i in range(len(headers)):

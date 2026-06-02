@@ -230,3 +230,85 @@ class CrudTarefa:
                 "observacao": row["observacao"]
             })
         return resultado
+        
+    @staticmethod
+    def tarefas_por_colaborador():
+        """Retorna lista de tarefas agrupadas por colaborador"""
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                c.nome as colaborador,
+                t.nome as tarefa,
+                f.nome as funcao,
+                t.duracao_minutos,
+                t.frequencia_tipo,
+                CASE t.frequencia_tipo
+                    WHEN 'diaria' THEN 30
+                    WHEN 'semanal' THEN 30.0/7
+                    WHEN 'quinzenal' THEN 2
+                    WHEN 'mensal' THEN 1
+                    ELSE 0
+                END as vezes_mes,
+                (t.duracao_minutos / 60.0) * 
+                CASE t.frequencia_tipo
+                    WHEN 'diaria' THEN 30
+                    WHEN 'semanal' THEN 30.0/7
+                    WHEN 'quinzenal' THEN 2
+                    WHEN 'mensal' THEN 1
+                    ELSE 0
+                END as horas_mes,
+                op.nome as operacao,
+                a.nome as ambiente,
+                e.nome as equipamento
+            FROM tarefa t
+            JOIN funcao f ON t.funcao_id = f.id
+            JOIN colaborador c ON t.colaborador_id = c.id
+            LEFT JOIN ambiente a ON t.ambiente_id = a.id
+            LEFT JOIN operacao op ON a.operacao_id = op.id
+            LEFT JOIN equipamento e ON t.equipamento_id = e.id
+            ORDER BY c.nome, t.nome
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        resultado = []
+        for row in rows:
+            resultado.append({
+                "colaborador": row["colaborador"],
+                "tarefa": row["tarefa"],
+                "funcao": row["funcao"],
+                "duracao_horas": round(row["duracao_minutos"] / 60, 1),
+                "frequencia": row["frequencia_tipo"],
+                "vezes_mes": round(row["vezes_mes"], 2),
+                "horas_mes": round(row["horas_mes"], 2),
+                "operacao": row["operacao"] or "-",
+                "ambiente": row["ambiente"] or "-",
+                "equipamento": row["equipamento"] or "-"
+            })
+        return resultado
+
+    @staticmethod
+    def resumo_horas_por_colaborador():
+        """Retorna total de horas/mês por colaborador"""
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                c.nome as colaborador,
+                SUM((t.duracao_minutos / 60.0) * 
+                    CASE t.frequencia_tipo
+                        WHEN 'diaria' THEN 30
+                        WHEN 'semanal' THEN 30.0/7
+                        WHEN 'quinzenal' THEN 2
+                        WHEN 'mensal' THEN 1
+                        ELSE 0
+                    END) as total_horas_mes
+            FROM tarefa t
+            JOIN colaborador c ON t.colaborador_id = c.id
+            GROUP BY c.nome
+            ORDER BY total_horas_mes DESC
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        return [{"colaborador": row["colaborador"], "total_horas_mes": round(row["total_horas_mes"], 2)} for row in rows]
