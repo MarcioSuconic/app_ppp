@@ -5,7 +5,7 @@ class CrudColaborador:
     @staticmethod
     def criar(nome, eh_socio=False, funcao_principal_id=None, observacao=""):
         if not nome or len(nome.strip()) == 0:
-            return False, "Nome do colaborador não pode estar vazio."
+            return False, None, "Nome do colaborador não pode estar vazio."
         
         conn = get_connection()
         cursor = conn.cursor()
@@ -34,7 +34,17 @@ class CrudColaborador:
         """)
         rows = cursor.fetchall()
         conn.close()
-        return [dict(row) for row in rows]
+        
+        resultado = []
+        for row in rows:
+            resultado.append({
+                "id": row["id"],
+                "nome": row["nome"],
+                "eh_socio": "Sim" if row["eh_socio"] else "Não",
+                "funcao_principal_nome": row["funcao_principal_nome"] or "(nenhuma)",
+                "observacao": row["observacao"] or "-"
+            })
+        return resultado
     
     @staticmethod
     def buscar_por_id(cid):
@@ -116,7 +126,6 @@ class CrudColaborador:
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Remove funções auxiliares primeiro
         cursor.execute("DELETE FROM colaborador_funcao WHERE colaborador_id = ?", (cid,))
         
         try:

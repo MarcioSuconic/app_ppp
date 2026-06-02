@@ -5,5 +5,8 @@ ignore_missing_imports = true
 module = ["PySide6.*", "shiboken6.*"]
 ignore_missing_imports = true
 
-[tool.mypy]
-plugins = ["pyside6.mypy_plugin"]
+[tool.pylint.main]
+ignore = ["venv", ".git", "__pycache__"]
+
+[tool.pylint.messages_control]
+disable = ["import-error", "no-name-in-module"]

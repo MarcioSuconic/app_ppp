@@ -1,0 +1,9 @@
+# 1. Clonar o repositório público
+git clone https://github.com/MarcioSuconic/app_ppp.git
+cd app_ppp
+
+# 2. Dar permissão de execução ao script
+chmod +x install_ppp.sh
+
+# 3. Executar o script de instalação (como root)
+sudo ./install_ppp.sh

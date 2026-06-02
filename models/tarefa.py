@@ -2,6 +2,46 @@ from models.database import get_connection
 import sqlite3
 
 class CrudTarefa:
+    
+    @staticmethod
+    def validar_funcao_tem_colaborador(funcao_id):
+        """Verifica se existe pelo menos um colaborador com esta função (como principal ou adicional)"""
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Verifica na tabela colaborador_funcao (funções adicionais)
+        cursor.execute("""
+            SELECT COUNT(*) FROM colaborador_funcao 
+            WHERE funcao_id = ?
+        """, (funcao_id,))
+        count_adicionais = cursor.fetchone()[0]
+        
+        # Verifica na coluna funcao_principal_id (função principal)
+        cursor.execute("""
+            SELECT COUNT(*) FROM colaborador 
+            WHERE funcao_principal_id = ?
+        """, (funcao_id,))
+        count_principais = cursor.fetchone()[0]
+        
+        conn.close()
+        return (count_adicionais + count_principais) > 0
+    
+    @staticmethod
+    def listar_colaboradores_por_funcao(funcao_id):
+        """Retorna colaboradores que têm uma determinada função (como principal ou adicional)"""
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT c.id, c.nome 
+            FROM colaborador c
+            LEFT JOIN colaborador_funcao cf ON c.id = cf.colaborador_id AND cf.funcao_id = ?
+            WHERE c.funcao_principal_id = ? OR cf.funcao_id = ?
+            ORDER BY c.nome
+        """, (funcao_id, funcao_id, funcao_id))
+        rows = cursor.fetchall()
+        conn.close()
+        return [{"id": row["id"], "nome": row["nome"]} for row in rows]
+    
     @staticmethod
     def calcular_vezes_mes(frequencia_tipo):
         """Retorna quantas vezes por mês a tarefa ocorre (base 30 dias)"""
@@ -25,6 +65,10 @@ class CrudTarefa:
             return False, "Duração deve ser maior que zero."
         if frequencia_tipo not in ['diaria', 'semanal', 'quinzenal', 'mensal', 'unica']:
             return False, "Frequência inválida."
+        
+        # VALIDAÇÃO: existe colaborador com esta função?
+        if not CrudTarefa.validar_funcao_tem_colaborador(funcao_id):
+            return False, f"Não é possível criar tarefa. Não há nenhum colaborador cadastrado com a função selecionada.\n\nCadastre um colaborador ou adicione esta função a um colaborador existente antes de criar tarefas para esta função."
         
         conn = get_connection()
         cursor = conn.cursor()
@@ -77,6 +121,10 @@ class CrudTarefa:
                   ambiente_id=None, equipamento_id=None, observacao=""):
         if not nome or len(nome.strip()) == 0:
             return False, "Nome da tarefa não pode estar vazio."
+        
+        # VALIDAÇÃO: existe colaborador com esta função?
+        if not CrudTarefa.validar_funcao_tem_colaborador(funcao_id):
+            return False, f"Não é possível atualizar tarefa. Não há nenhum colaborador cadastrado com a função selecionada.\n\nCadastre um colaborador ou adicione esta função a um colaborador existente."
         
         conn = get_connection()
         cursor = conn.cursor()

@@ -1,11 +1,10 @@
 import openpyxl
-from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.styles import Font, Alignment
 from datetime import datetime
 import os
 from models.tarefa import CrudTarefa
 from models.equipamento import CrudEquipamento
-from models.ambiente import CrudAmbiente
-from models.operacao import CrudOperacao
+from views.resumo_operacao import ResumoOperacao
 
 def gerar_relatorio_excel(caminho_saida=None):
     if not caminho_saida:
@@ -26,7 +25,7 @@ def gerar_relatorio_excel(caminho_saida=None):
         ws1.append([
             linha["tarefa"],
             linha["funcao"],
-            linha["duracao_minutos"],
+            round(linha["duracao_minutos"] / 60, 1),
             linha["frequencia_tipo"],
             round(linha["vezes_mes"], 2),
             round(linha["horas_mes"], 2),
@@ -142,6 +141,69 @@ def gerar_relatorio_excel(caminho_saida=None):
             if cell.value:
                 max_len = max(max_len, len(str(cell.value)))
         ws4.column_dimensions[col[0].column_letter].width = min(max_len + 2, 80)
+    
+    wb.save(caminho_saida)
+    return caminho_saida
+
+def gerar_relatorio_excel_com_abas_operacao(operacao_id, operacao_nome, caminho_saida=None):
+    """Gera um Excel específico para uma operação, com abas de resumo"""
+    from views.resumo_operacao import ResumoOperacao
+    from openpyxl.styles import Font
+    from datetime import datetime
+    import os
+    
+    if not caminho_saida:
+        os.makedirs('relatorios', exist_ok=True)
+        caminho_saida = f'relatorios/PPP_{operacao_nome}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    
+    # ========== ABA 1: Tarefas ==========
+    ws1 = wb.create_sheet("Tarefas")
+    tarefas = ResumoOperacao.get_tarefas_por_operacao(operacao_id)
+    if tarefas:
+        ws1.append(["ID", "Tarefa", "Duração (h)", "Frequência", "Vezes/Mês", "Horas/Mês", "Função", "Ambiente", "Equipamento", "Observação"])
+        for t in tarefas:
+            ws1.append([t["id"], t["tarefa"], t["duracao_horas"], t["frequencia"], 
+                       t["vezes_mes"], t["horas_mes"], t["funcao"], t["ambiente"], 
+                       t["equipamento"], t["observacao"]])
+        for cell in ws1[1]:
+            cell.font = Font(bold=True)
+    
+    # ========== ABA 2: Equipamentos ==========
+    ws2 = wb.create_sheet("Equipamentos")
+    equipamentos = ResumoOperacao.get_equipamentos_por_operacao(operacao_id)
+    if equipamentos:
+        ws2.append(["ID", "Nome", "Marca", "Modelo", "Capacidade", "Ambiente", "Preço (R$)"])
+        for eq in equipamentos:
+            ws2.append([eq["id"], eq["nome"], eq["marca"] or "-", eq["modelo"] or "-",
+                       eq["capacidade"] or "-", eq["ambiente_nome"] or "-", eq["preco_estimado"] or 0])
+        for cell in ws2[1]:
+            cell.font = Font(bold=True)
+    
+    # ========== ABA 3: Horas por Função ==========
+    ws3 = wb.create_sheet("Horas_por_Funcao")
+    horas = ResumoOperacao.get_horas_por_funcao_na_operacao(operacao_id)
+    if horas:
+        ws3.append(["Função", "Horas/Mês"])
+        for h in horas:
+            ws3.append([h["funcao"], round(h["horas_mes"], 2)])
+        for cell in ws3[1]:
+            cell.font = Font(bold=True)
+    
+    # ========== ABA 4: Informações ==========
+    ws4 = wb.create_sheet("Informações")
+    ws4.append(["Operação", operacao_nome])
+    ws4.append(["Data de Geração", datetime.now().strftime("%d/%m/%Y %H:%M:%S")])
+    
+    for ws in [ws1, ws2, ws3, ws4]:
+        for col in ws.columns:
+            max_len = 0
+            for cell in col:
+                if cell.value:
+                    max_len = max(max_len, len(str(cell.value)))
+            ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 50)
     
     wb.save(caminho_saida)
     return caminho_saida

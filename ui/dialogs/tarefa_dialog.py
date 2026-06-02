@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit,
-                               QComboBox, QSpinBox, QTextEdit, QDialogButtonBox, 
-                               QMessageBox)
+                               QComboBox, QDoubleSpinBox, QTextEdit, QDialogButtonBox, 
+                               QMessageBox, QLabel)
 from models.tarefa import CrudTarefa
 from models.funcao import CrudFuncao
 from models.ambiente import CrudAmbiente
@@ -21,10 +21,13 @@ class TarefaDialog(QDialog):
         self.nome_edit = QLineEdit()
         form_layout.addRow("Nome da Tarefa:*", self.nome_edit)
         
-        self.duracao_spin = QSpinBox()
-        self.duracao_spin.setRange(1, 1440)
-        self.duracao_spin.setSuffix(" minutos")
-        form_layout.addRow("Duração:*", self.duracao_spin)
+        # Duração em HORAS
+        self.duracao_horas = QDoubleSpinBox()
+        self.duracao_horas.setRange(0.1, 24)
+        self.duracao_horas.setSingleStep(0.5)
+        self.duracao_horas.setSuffix(" horas")
+        self.duracao_horas.setDecimals(1)
+        form_layout.addRow("Duração:*", self.duracao_horas)
         
         self.frequencia_combo = QComboBox()
         self.frequencia_combo.addItems(['diaria', 'semanal', 'quinzenal', 'mensal', 'unica'])
@@ -32,7 +35,12 @@ class TarefaDialog(QDialog):
         
         self.funcao_combo = QComboBox()
         self.carregar_funcoes()
+        self.funcao_combo.currentIndexChanged.connect(self.mostrar_aviso_funcionarios)
         form_layout.addRow("Função Responsável:*", self.funcao_combo)
+        
+        self.aviso_label = QLabel("")
+        self.aviso_label.setStyleSheet("font-size: 11px;")
+        form_layout.addRow("", self.aviso_label)
         
         self.ambiente_combo = QComboBox()
         self.carregar_ambientes()
@@ -62,6 +70,18 @@ class TarefaDialog(QDialog):
         for func in CrudFuncao.listar_todos():
             self.funcao_combo.addItem(func["nome"], func["id"])
     
+    def mostrar_aviso_funcionarios(self):
+        funcao_id = self.funcao_combo.currentData()
+        if funcao_id:
+            if not CrudTarefa.validar_funcao_tem_colaborador(funcao_id):
+                self.aviso_label.setText("⚠️ Nenhum colaborador cadastrado com esta função. Cadastre um colaborador antes de criar a tarefa.")
+                self.aviso_label.setStyleSheet("color: red; font-size: 11px;")
+            else:
+                self.aviso_label.setText("✅ Função válida: há colaborador(es) disponível(eis).")
+                self.aviso_label.setStyleSheet("color: green; font-size: 11px;")
+        else:
+            self.aviso_label.setText("")
+    
     def carregar_ambientes(self):
         self.ambiente_combo.clear()
         self.ambiente_combo.addItem("(Nenhum)", None)
@@ -82,7 +102,7 @@ class TarefaDialog(QDialog):
         dados = CrudTarefa.buscar_por_id(self.tarefa_id)
         if dados:
             self.nome_edit.setText(dados["nome"])
-            self.duracao_spin.setValue(dados["duracao_minutos"])
+            self.duracao_horas.setValue(dados["duracao_minutos"] / 60)
             
             freq_idx = self.frequencia_combo.findText(dados["frequencia_tipo"])
             if freq_idx >= 0:
@@ -91,6 +111,7 @@ class TarefaDialog(QDialog):
             func_idx = self.funcao_combo.findData(dados["funcao_id"])
             if func_idx >= 0:
                 self.funcao_combo.setCurrentIndex(func_idx)
+                self.mostrar_aviso_funcionarios()
             
             if dados["ambiente_id"]:
                 amb_idx = self.ambiente_combo.findData(dados["ambiente_id"])
@@ -110,7 +131,7 @@ class TarefaDialog(QDialog):
             QMessageBox.warning(self, "Aviso", "O nome da tarefa é obrigatório.")
             return
         
-        duracao = self.duracao_spin.value()
+        duracao_minutos = int(self.duracao_horas.value() * 60)
         frequencia = self.frequencia_combo.currentText()
         funcao_id = self.funcao_combo.currentData()
         ambiente_id = self.ambiente_combo.currentData()
@@ -121,11 +142,19 @@ class TarefaDialog(QDialog):
             QMessageBox.warning(self, "Aviso", "Selecione uma função responsável.")
             return
         
+        # VALIDAÇÃO ANTES DE SALVAR
+        if not CrudTarefa.validar_funcao_tem_colaborador(funcao_id):
+            QMessageBox.critical(self, "Erro de Validação", 
+                                 "Não é possível salvar esta tarefa.\n\n"
+                                 f"Não há nenhum colaborador cadastrado com a função '{self.funcao_combo.currentText()}'.\n\n"
+                                 "Cadastre um colaborador e associe a esta função antes de criar a tarefa.")
+            return
+        
         if self.tarefa_id is None:
-            sucesso, msg = CrudTarefa.criar(nome, duracao, frequencia, funcao_id,
+            sucesso, msg = CrudTarefa.criar(nome, duracao_minutos, frequencia, funcao_id,
                                            ambiente_id, equipamento_id, observacao)
         else:
-            sucesso, msg = CrudTarefa.atualizar(self.tarefa_id, nome, duracao, frequencia,
+            sucesso, msg = CrudTarefa.atualizar(self.tarefa_id, nome, duracao_minutos, frequencia,
                                                 funcao_id, ambiente_id, equipamento_id, observacao)
         
         if sucesso:

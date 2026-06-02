@@ -110,6 +110,19 @@ def init_db():
         ]
         cursor.executemany("INSERT INTO operacao (nome, descricao) VALUES (?, ?)", operacoes_padrao)
         conn.commit()
+        
+    # Verificar se existem colaboradores com funções básicas (para teste)
+    cursor.execute("SELECT COUNT(*) FROM colaborador_funcao")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("SELECT id FROM colaborador LIMIT 1")
+        colaborador = cursor.fetchone()
+        cursor.execute("SELECT id FROM funcao LIMIT 1")
+        funcao = cursor.fetchone()
+        if colaborador and funcao:
+            cursor.execute("INSERT INTO colaborador_funcao (colaborador_id, funcao_id) VALUES (?, ?)",
+                        (colaborador[0], funcao[0]))
+            conn.commit()
+            print("✅ Associação automática criada (primeiro colaborador → primeira função)")
     
     conn.close()
     print("✅ Banco de dados inicializado com sucesso.")

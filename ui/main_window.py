@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QPushButton, 
                                QMessageBox, QLabel, QMenuBar, QMenu, QTableView,
-                               QHeaderView, QHBoxLayout, QSplitter, QTextEdit)
+                               QHeaderView, QHBoxLayout)
 from PySide6.QtCore import Qt, QAbstractTableModel
 from views.excel_export import gerar_relatorio_excel
 from models.operacao import CrudOperacao
@@ -46,6 +46,7 @@ class TableModel(QAbstractTableModel):
         return None
 
 class MainWindow(QMainWindow):
+    
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PPP - Palmas Project Planner")
@@ -58,7 +59,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
         
-        # Título e introdução
+        # Título
         self.intro_label = QLabel("📋 PPP - Planejamento de Viabilidade")
         self.intro_label.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px; background-color: #2c3e50; color: white;")
         layout.addWidget(self.intro_label)
@@ -67,15 +68,34 @@ class MainWindow(QMainWindow):
         self.btn_excel = QPushButton("📊 GERAR RELATÓRIO EXCEL COMPLETO")
         self.btn_excel.clicked.connect(self.gerar_excel)
         self.btn_excel.setStyleSheet("padding: 10px; font-weight: bold; background-color: #27ae60; color: white; font-size: 14px;")
-        layout.addWidget(self.btn_excel)
+        layout.addWidget(self.btn_excel)        
+        
+        # Botão Resumo
+        self.btn_resumo = QPushButton("🔍 Resumo por Operação")
+        self.btn_resumo.clicked.connect(self.abrir_resumo_operacao)
+        self.btn_resumo.setStyleSheet("padding: 10px; font-weight: bold; background-color: #3498db; color: white; font-size: 14px;")
+        layout.addWidget(self.btn_resumo) 
         
         # Status
         self.status_label = QLabel("✅ CRUD ativo: OPERAÇÕES")
         self.status_label.setStyleSheet("padding: 5px; background-color: #ecf0f1;")
         layout.addWidget(self.status_label)
         
-        # Tabela
+        # Tabela com melhorias de seleção
         self.tableView = QTableView()
+        self.tableView.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        self.tableView.setSelectionMode(QTableView.SelectionMode.SingleSelection)
+        self.tableView.setAlternatingRowColors(True)
+        self.tableView.verticalHeader().setDefaultSectionSize(30)  # Altura da linha
+        self.tableView.setStyleSheet("""
+            QTableView::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+            QTableView::item:hover {
+                background-color: #ecf0f1;
+            }
+        """)
         layout.addWidget(self.tableView)
         
         # Botões de ação
@@ -90,6 +110,10 @@ class MainWindow(QMainWindow):
         self.btn_excluir.clicked.connect(self.excluir_registro)
         self.btn_refresh.clicked.connect(self.carregar_tabela)
         
+        # Atalhos de teclado
+        self.btn_editar.setShortcut("Return")   # Enter para editar
+        self.btn_excluir.setShortcut("Delete")  # Delete para excluir
+        
         btn_layout.addWidget(self.btn_novo)
         btn_layout.addWidget(self.btn_editar)
         btn_layout.addWidget(self.btn_excluir)
@@ -98,6 +122,7 @@ class MainWindow(QMainWindow):
         
         self.carregar_tabela()
         self.mostrar_intro()
+
     
     def criar_menu(self):
         menubar = QMenuBar(self)
@@ -129,7 +154,6 @@ class MainWindow(QMainWindow):
         acao_intro.triggered.connect(self.mostrar_intro_dialog)
     
     def mostrar_intro(self):
-        """Mostra a introdução no status label"""
         intro = "PPP - Palmas Project Planner | Ferramenta de Viabilidade | CNPJ único | Operações: Bar, Harmony, Lanchonete/Café, Ateliê"
         self.intro_label.setText(intro)
     
@@ -184,10 +208,18 @@ FILOSOFIA:
             headers = ["ID", "Nome"]
         elif self.current_crud == "colaborador":
             dados = CrudColaborador.listar_todos()
-            headers = ["ID", "Nome", "Sócio", "Função Principal", "Obs"]
+            # Corrige a visualização dos dados
+            for d in dados:
+                d["funcao_principal_nome"] = d.get("funcao_principal_nome") or "(nenhuma)"
+                d["observacao"] = d.get("observacao") or "-"
+            headers = ["ID", "Nome", "Sócio", "Função Principal", "Observação"]
         else:  # tarefa
             dados = CrudTarefa.listar_todos()
-            headers = ["ID", "Tarefa", "Duração(min)", "Frequência", "Função", "Ambiente", "Equipamento"]
+            # Converte duracao_minutos para horas na exibição
+            for d in dados:
+                horas = d["duracao_minutos"] / 60
+                d["duracao_minutos"] = f"{horas:.1f}h"
+            headers = ["ID", "Tarefa", "Duração", "Frequência", "Função", "Ambiente", "Equipamento"]
         
         if not dados:
             dados = []
@@ -285,6 +317,11 @@ FILOSOFIA:
             else:
                 QMessageBox.critical(self, "Erro", msg)
     
+    def abrir_resumo_operacao(self):
+        from ui.dialogs.resumo_operacao_dialog import ResumoOperacaoDialog
+        dialog = ResumoOperacaoDialog(self)
+        dialog.exec()
+
     def gerar_excel(self):
         try:
             caminho = gerar_relatorio_excel()
