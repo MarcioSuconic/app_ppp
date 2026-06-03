@@ -71,14 +71,19 @@ class ResumoOperacaoDialog(QDialog):
         # Aba 1: Tarefas (nova!)
         self.tab_tarefas = QTableView()
         self.tab_tarefas.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.tab_widget.addTab(self.tab_tarefas, "✅ Tarefas")
+        self.tab_widget.addTab(self.tab_tarefas, "✅ Tarefas")       
         
-        # Aba 2: Equipamentos
+        # Aba 2: Cardápio (nova!)
+        self.tab_cardapio = QTableView()
+        self.tab_cardapio.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tab_widget.addTab(self.tab_cardapio, "📋 Cardápio")
+        
+        # Aba 3: Equipamentos
         self.tab_equipamentos = QTableView()
         self.tab_equipamentos.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tab_widget.addTab(self.tab_equipamentos, "🔧 Equipamentos")
         
-        # Aba 3: Horas por Função
+        # Aba 4: Horas por Função
         self.tab_horas = QTableView()
         self.tab_horas.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tab_widget.addTab(self.tab_horas, "⏱️ Horas/Mês por Função")
@@ -92,13 +97,13 @@ class ResumoOperacaoDialog(QDialog):
         self.operacao_combo.clear()
         for op in CrudOperacao.listar_todos():
             self.operacao_combo.addItem(op["nome"], op["id"])
-    
+            
     def carregar_resumos(self):
         operacao_id = self.operacao_combo.currentData()
         if not operacao_id:
             return
         
-        # Tarefas da operação
+        # ========== TAREFAS ==========
         tarefas = ResumoOperacao.get_tarefas_por_operacao(operacao_id)
         if tarefas:
             headers = ["ID", "Tarefa", "Duração (h)", "Frequência", "Vezes/Mês", "Horas/Mês", "Função", "Colaborador", "Ambiente", "Equipamento", "Obs"]
@@ -109,7 +114,42 @@ class ResumoOperacaoDialog(QDialog):
         else:
             self.tab_tarefas.setModel(None)
         
-        # Equipamentos
+        # ========== CARDÁPIO (PRODUTOS E SERVIÇOS) ==========
+        produtos = ResumoOperacao.get_produtos_por_operacao(operacao_id)
+        servicos = ResumoOperacao.get_servicos_por_operacao(operacao_id)
+        
+        dados_cardapio = []
+        for s in servicos:
+            dados_cardapio.append({
+                "tipo": "🔧 Serviço",
+                "categoria": s["categoria"],
+                "nome": s["nome"],
+                "descricao": s["descricao"],
+                "preco": f"R$ {s['preco']:.2f}",
+                "custo": f"R$ {s['custo']:.2f}",
+                "unidade_duracao": f"{s['duracao']} min"
+            })
+        for p in produtos:
+            dados_cardapio.append({
+                "tipo": "🍺 Produto",
+                "categoria": p["categoria"],
+                "nome": p["nome"],
+                "descricao": p["descricao"],
+                "preco": f"R$ {p['preco']:.2f}",
+                "custo": f"R$ {p['custo']:.2f}",
+                "unidade_duracao": p["unidade"]
+            })
+        
+        if dados_cardapio:
+            headers = ["Tipo", "Categoria", "Nome", "Descrição", "Preço", "Custo", "Unidade/Duração"]
+            model = TableModelResumo(dados_cardapio, headers)
+            self.tab_cardapio.setModel(model)
+            for i in range(len(headers)):
+                self.tab_cardapio.horizontalHeader().setSectionResizeMode(i, QHeaderView.Stretch)
+        else:
+            self.tab_cardapio.setModel(None)
+        
+        # ========== EQUIPAMENTOS ==========
         equipamentos = ResumoOperacao.get_equipamentos_por_operacao(operacao_id)
         if equipamentos:
             headers = ["ID", "Nome", "Marca", "Modelo", "Capacidade", "Ambiente", "Preço (R$)"]
@@ -131,7 +171,7 @@ class ResumoOperacaoDialog(QDialog):
         else:
             self.tab_equipamentos.setModel(None)
         
-        # Horas por função
+        # ========== HORAS POR FUNÇÃO ==========
         horas = ResumoOperacao.get_horas_por_funcao_na_operacao(operacao_id)
         if horas:
             headers = ["Função", "Horas/Mês"]
@@ -141,7 +181,7 @@ class ResumoOperacaoDialog(QDialog):
                 self.tab_horas.horizontalHeader().setSectionResizeMode(i, QHeaderView.Stretch)
         else:
             self.tab_horas.setModel(None)
-    
+            
     def exportar_excel(self):
         operacao_id = self.operacao_combo.currentData()
         operacao_nome = self.operacao_combo.currentText()

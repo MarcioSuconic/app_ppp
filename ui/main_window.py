@@ -9,12 +9,20 @@ from models.equipamento import CrudEquipamento
 from models.funcao import CrudFuncao
 from models.colaborador import CrudColaborador
 from models.tarefa import CrudTarefa
+from models.categoria_produto import CrudCategoriaProduto
+from models.produto import CrudProduto
+from models.categoria_servico import CrudCategoriaServico
+from models.servico import CrudServico
 from ui.dialogs.operacao_dialog import OperacaoDialog
 from ui.dialogs.ambiente_dialog import AmbienteDialog
 from ui.dialogs.equipamento_dialog import EquipamentoDialog
 from ui.dialogs.funcao_dialog import FuncaoDialog
 from ui.dialogs.colaborador_dialog import ColaboradorDialog
 from ui.dialogs.tarefa_dialog import TarefaDialog
+from ui.dialogs.categoria_produto_dialog import CategoriaProdutoDialog
+from ui.dialogs.produto_dialog import ProdutoDialog
+from ui.dialogs.categoria_servico_dialog import CategoriaServicoDialog
+from ui.dialogs.servico_dialog import ServicoDialog
 
 class TableModel(QAbstractTableModel):
     def __init__(self, data, headers, keys=None):
@@ -146,6 +154,19 @@ class MainWindow(QMainWindow):
         acao_tarefa = cadastro_menu.addAction("✅ Tarefas")
         acao_tarefa.triggered.connect(lambda: self.mudar_crud("tarefa"))
         
+        prod_menu = QMenu("📦 Produtos e Serviços", self)
+        menubar.addMenu(prod_menu)
+
+        acao_categoria_produto = prod_menu.addAction("📂 Categorias de Produtos")
+        acao_categoria_produto.triggered.connect(lambda: self.mudar_crud("categoria_produto"))
+        acao_produto = prod_menu.addAction("🍺 Produtos")
+        acao_produto.triggered.connect(lambda: self.mudar_crud("produto"))
+        prod_menu.addSeparator()
+        acao_categoria_servico = prod_menu.addAction("🔧 Categorias de Serviços")
+        acao_categoria_servico.triggered.connect(lambda: self.mudar_crud("categoria_servico"))
+        acao_servico = prod_menu.addAction("🛠️ Serviços")
+        acao_servico.triggered.connect(lambda: self.mudar_crud("servico"))
+        
         cadastro_menu.addSeparator()
         acao_sair = cadastro_menu.addAction("🚪 Sair")
         acao_sair.triggered.connect(self.close)
@@ -189,59 +210,87 @@ FILOSOFIA:
             "equipamento": "EQUIPAMENTOS",
             "funcao": "FUNÇÕES",
             "colaborador": "COLABORADORES",
-            "tarefa": "TAREFAS"
+            "tarefa": "TAREFAS",
+            "categoria_produto": "CATEGORIAS DE PRODUTOS",
+            "produto": "PRODUTOS",
+            "categoria_servico": "CATEGORIAS DE SERVIÇOS",
+            "servico": "SERVIÇOS",
         }
         self.status_label.setText(f"✅ CRUD ativo: {nomes.get(crud, '')}")
         self.setWindowTitle(f"PPP - {nomes.get(crud, '')}")
         self.carregar_tabela()
     
     def carregar_tabela(self):
+        dados = []
+        headers = []
+        keys = []
+        
         if self.current_crud == "operacao":
             dados = CrudOperacao.listar_todos()
-            headers = ["ID", "Nome", "Descrição"]
-            keys = ["id", "nome", "descricao"]
-            model = TableModel(dados, headers, keys)
+            headers = ["ID", "Nome", "Descrição", "Ativo"]
+            keys = ["id", "nome", "descricao", "ativo"]
             
         elif self.current_crud == "ambiente":
             dados = CrudAmbiente.listar_todos()
-            headers = ["ID", "Nome", "Operação", "Descrição"]
-            keys = ["id", "nome", "operacao", "descricao"]
-            model = TableModel(dados, headers, keys)
+            headers = ["ID", "Nome", "Operação", "Descrição", "Ativo"]
+            keys = ["id", "nome", "operacao", "descricao", "ativo"]
             
         elif self.current_crud == "equipamento":
             dados = CrudEquipamento.listar_todos()
-            headers = ["ID", "Nome", "Marca", "Modelo", "Capacidade", "Preço", "Ambiente"]
-            keys = ["id", "nome", "marca", "modelo", "capacidade", "preco_estimado", "ambiente_nome"]
-            model = TableModel(dados, headers, keys)
+            headers = ["ID", "Nome", "Marca", "Modelo", "Capacidade", "Preço", "Ambiente", "Ativo"]
+            keys = ["id", "nome", "marca", "modelo", "capacidade", "preco_estimado", "ambiente_nome", "ativo"]
             
         elif self.current_crud == "funcao":
             dados = CrudFuncao.listar_todos()
-            headers = ["ID", "Nome"]
-            keys = ["id", "nome"]
-            model = TableModel(dados, headers, keys)
+            headers = ["ID", "Nome", "Ativo"]
+            keys = ["id", "nome", "ativo"]
             
         elif self.current_crud == "colaborador":
             dados = CrudColaborador.listar_todos()
             for d in dados:
                 d["funcao_principal_nome"] = d.get("funcao_principal_nome") or "(nenhuma)"
                 d["observacao"] = d.get("observacao") or "-"
-            headers = ["ID", "Nome", "Sócio", "Função Principal", "Observação"]
-            keys = ["id", "nome", "eh_socio", "funcao_principal_nome", "observacao"]
-            model = TableModel(dados, headers, keys)
+            headers = ["ID", "Nome", "Sócio", "Função Principal", "Observação", "Ativo"]
+            keys = ["id", "nome", "eh_socio", "funcao_principal_nome", "observacao", "ativo"]
             
-        else:  # tarefa
+        elif self.current_crud == "tarefa":
             dados = CrudTarefa.listar_todos()
             for d in dados:
                 horas = d["duracao_minutos"] / 60
                 d["duracao_minutos"] = f"{horas:.1f}h"
                 d["colaborador_nome"] = d.get("colaborador_nome") or "(não atribuído)"
-            headers = ["ID", "Tarefa", "Duração", "Frequência", "Função", "Colaborador", "Ambiente", "Equipamento"]
-            keys = ["id", "nome", "duracao_minutos", "frequencia_tipo", "funcao_nome", "colaborador_nome", "ambiente_nome", "equipamento_nome"]
-            model = TableModel(dados, headers, keys)
+            headers = ["ID", "Tarefa", "Duração", "Frequência", "Função", "Colaborador", "Ambiente", "Equipamento", "Ativo"]
+            keys = ["id", "nome", "duracao_minutos", "frequencia_tipo", "funcao_nome", "colaborador_nome", "ambiente_nome", "equipamento_nome", "ativo"]
+            
+        elif self.current_crud == "categoria_produto":
+            dados = CrudCategoriaProduto.listar_todos(apenas_ativos=False)
+            headers = ["ID", "Nome", "Descrição", "Ativo"]
+            keys = ["id", "nome", "descricao", "ativo"]
+            
+        elif self.current_crud == "produto":
+            dados = CrudProduto.listar_todos(apenas_ativos=False)
+            for d in dados:
+                d["unidade_nome"] = d.get("unidade_nome") or "-"
+                d["categoria_nome"] = d.get("categoria_nome") or "-"
+            headers = ["ID", "Nome", "Descrição", "Unidade", "Categoria", "Preço (R$)", "Custo (R$)", "Ativo"]
+            keys = ["id", "nome", "descricao", "unidade_nome", "categoria_nome", "preco_sugerido", "custo_producao", "ativo"]
+            
+        elif self.current_crud == "categoria_servico":
+            dados = CrudCategoriaServico.listar_todos(apenas_ativos=False)
+            headers = ["ID", "Nome", "Descrição", "Ativo"]
+            keys = ["id", "nome", "descricao", "ativo"]
+            
+        elif self.current_crud == "servico":
+            dados = CrudServico.listar_todos(apenas_ativos=False)
+            for d in dados:
+                d["categoria_nome"] = d.get("categoria_nome") or "-"
+            headers = ["ID", "Nome", "Descrição", "Duração (min)", "Categoria", "Preço (R$)", "Custo (R$)", "Ativo"]
+            keys = ["id", "nome", "descricao", "duracao_padrao_minutos", "categoria_nome", "preco_sugerido", "custo_producao", "ativo"]
         
         if not dados:
             dados = []
         
+        model = TableModel(dados, headers, keys)
         self.tableView.setModel(model)
         for i in range(len(headers)):
             self.tableView.horizontalHeader().setSectionResizeMode(i, QHeaderView.Stretch)
@@ -262,6 +311,14 @@ FILOSOFIA:
             dialog = ColaboradorDialog(self)
         elif self.current_crud == "tarefa":
             dialog = TarefaDialog(self)
+        elif self.current_crud == "categoria_produto":
+            dialog = CategoriaProdutoDialog(self)
+        elif self.current_crud == "produto":
+            dialog = ProdutoDialog(self)
+        elif self.current_crud == "categoria_servico":
+            dialog = CategoriaServicoDialog(self)
+        elif self.current_crud == "servico":
+            dialog = ServicoDialog(self)
         
         if dialog and dialog.exec():
             self.carregar_tabela()
@@ -294,6 +351,14 @@ FILOSOFIA:
             dialog = ColaboradorDialog(self, int(registro_id))
         elif self.current_crud == "tarefa":
             dialog = TarefaDialog(self, int(registro_id))
+        elif self.current_crud == "categoria_produto":
+            dialog = CategoriaProdutoDialog(self, int(registro_id))
+        elif self.current_crud == "produto":
+            dialog = ProdutoDialog(self, int(registro_id))
+        elif self.current_crud == "categoria_servico":
+            dialog = CategoriaServicoDialog(self, int(registro_id))
+        elif self.current_crud == "servico":
+            dialog = ServicoDialog(self, int(registro_id))
         
         if dialog and dialog.exec():
             self.carregar_tabela()
@@ -327,6 +392,14 @@ FILOSOFIA:
                 sucesso, msg = CrudColaborador.excluir(int(registro_id))
             elif self.current_crud == "tarefa":
                 sucesso, msg = CrudTarefa.excluir(int(registro_id))
+            elif self.current_crud == "categoria_produto":
+                sucesso, msg = CrudCategoriaProduto.excluir(int(registro_id))
+            elif self.current_crud == "produto":
+                sucesso, msg = CrudProduto.excluir(int(registro_id))
+            elif self.current_crud == "categoria_servico":
+                sucesso, msg = CrudCategoriaServico.excluir(int(registro_id))
+            elif self.current_crud == "servico":
+                sucesso, msg = CrudServico.excluir(int(registro_id))
             
             if sucesso:
                 QMessageBox.information(self, "Sucesso", msg)

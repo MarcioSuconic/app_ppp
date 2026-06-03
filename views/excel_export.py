@@ -104,6 +104,60 @@ def gerar_relatorio_excel_com_abas_operacao(operacao_id, operacao_nome, caminho_
                     t["ambiente"], t["equipamento"], t["observacao"]])
         for cell in ws1[1]:
             cell.font = Font(bold=True)
+            
+    # Aba 2: Cardápio (nova!)
+    ws_cardapio = wb.create_sheet("Cardápio")
+    produtos = ResumoOperacao.get_produtos_por_operacao(operacao_id)
+    servicos = ResumoOperacao.get_servicos_por_operacao(operacao_id)
+
+    row = 1
+    if servicos:
+        ws_cardapio.cell(row, 1, "SERVIÇOS")
+        row += 1
+        ws_cardapio.cell(row, 1, "Categoria")
+        ws_cardapio.cell(row, 2, "Serviço")
+        ws_cardapio.cell(row, 3, "Descrição")
+        ws_cardapio.cell(row, 4, "Duração (min)")
+        ws_cardapio.cell(row, 5, "Preço (R$)")
+        ws_cardapio.cell(row, 6, "Custo (R$)")
+        row += 1
+        for s in servicos:
+            ws_cardapio.cell(row, 1, s["categoria"])
+            ws_cardapio.cell(row, 2, s["nome"])
+            ws_cardapio.cell(row, 3, s["descricao"])
+            ws_cardapio.cell(row, 4, s["duracao"])
+            ws_cardapio.cell(row, 5, s["preco"])
+            ws_cardapio.cell(row, 6, s["custo"])
+            row += 1
+        row += 1
+
+    if produtos:
+        ws_cardapio.cell(row, 1, "PRODUTOS")
+        row += 1
+        ws_cardapio.cell(row, 1, "Categoria")
+        ws_cardapio.cell(row, 2, "Produto")
+        ws_cardapio.cell(row, 3, "Descrição")
+        ws_cardapio.cell(row, 4, "Unidade")
+        ws_cardapio.cell(row, 5, "Preço (R$)")
+        ws_cardapio.cell(row, 6, "Custo (R$)")
+        row += 1
+        for p in produtos:
+            ws_cardapio.cell(row, 1, p["categoria"])
+            ws_cardapio.cell(row, 2, p["nome"])
+            ws_cardapio.cell(row, 3, p["descricao"])
+            ws_cardapio.cell(row, 4, p["unidade"])
+            ws_cardapio.cell(row, 5, p["preco"])
+            ws_cardapio.cell(row, 6, p["custo"])
+            row += 1
+
+    # Ajustar larguras das colunas
+    for col in range(1, 7):
+        max_len = 0
+        for r in range(1, row + 1):
+            val = ws_cardapio.cell(r, col).value
+            if val:
+                max_len = max(max_len, len(str(val)))
+        ws_cardapio.column_dimensions[chr(64 + col)].width = min(max_len + 2, 40)
     
     # ========== ABA 2: Equipamentos ==========
     ws2 = wb.create_sheet("Equipamentos")
@@ -174,3 +228,54 @@ def gerar_relatorio_excel_com_abas_operacao(operacao_id, operacao_nome, caminho_
     
     wb.save(caminho_saida)
     return caminho_saida
+
+def gerar_aba_cardapio_por_operacao(wb, operacao_id, operacao_nome):
+    """Gera aba de cardápio para uma operação específica"""
+    from models.produto import CrudProduto
+    from models.servico import CrudServico
+    from models.categoria_produto import CrudCategoriaProduto
+    from models.categoria_servico import CrudCategoriaServico
+    
+    ws = wb.create_sheet(f"Cardapio_{operacao_nome[:20]}")
+    
+    # Título
+    ws.append([f"CARDÁPIO - {operacao_nome.upper()}"])
+    ws.append([])
+    
+    # SERVIÇOS
+    ws.append(["=== SERVIÇOS ==="])
+    ws.append(["Categoria", "Serviço", "Descrição", "Duração (min)", "Preço Sugerido (R$)", "Custo (R$)"])
+    
+    servicos = CrudServico.listar_por_operacao(operacao_id)
+    for s in servicos:
+        ws.append([
+            s.get("categoria_nome") or "-",
+            s["nome"],
+            s.get("descricao") or "-",
+            s.get("duracao_padrao_minutos", 0),
+            s.get("preco_sugerido", 0),
+            s.get("custo_producao", 0)
+        ])
+    
+    ws.append([])
+    
+    # PRODUTOS
+    ws.append(["=== PRODUTOS ==="])
+    ws.append(["Categoria", "Produto", "Descrição", "Unidade", "Preço Sugerido (R$)", "Custo (R$)"])
+    
+    produtos = CrudProduto.listar_por_operacao(operacao_id)
+    for p in produtos:
+        unidade = f"{p.get('quantidade_por_unidade', 1)} {p.get('unidade_sigla', 'un')}" if p.get('unidade_sigla') else "-"
+        ws.append([
+            p.get("categoria_nome") or "-",
+            p["nome"],
+            p.get("descricao") or "-",
+            unidade,
+            p.get("preco_sugerido", 0),
+            p.get("custo_producao", 0)
+        ])
+    
+    # Ajustar larguras
+    for col in ws.columns:
+        max_len = max([len(str(cell.value)) for cell in col if cell.value] or [10])
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 40)
