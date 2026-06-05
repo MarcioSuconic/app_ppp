@@ -1,0 +1,16 @@
+# Banco de dados
+*.db
+*.sqlite
+*.sqlite3
+ppp.db
+ppp2.db
+
+# Pastas de dados
+relatorios/
+backups/
+__pycache__/
+*.pyc
+
+# Arquivos locais
+config_local.py
+*.log
