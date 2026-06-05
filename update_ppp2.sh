@@ -35,14 +35,16 @@ fi
 echo -e "${BLUE}📁 Diretório: ${PPP_DIR}${NC}"
 
 # Backup
-echo -e "${BLUE}[1/4] Backup do banco...${NC}"
+echo -e "${BLUE}[1/5] Backup do banco...${NC}"
 BACKUP_DIR="$PPP_DIR/backups"
 mkdir -p "$BACKUP_DIR"
-cp "$PPP_DIR/ppp.db" "$BACKUP_DIR/ppp2_backup_$(date +%Y%m%d_%H%M%S).db"
-echo -e "   ✅ Backup criado"
+if [ -f "$PPP_DIR/ppp.db" ]; then
+    cp "$PPP_DIR/ppp.db" "$BACKUP_DIR/ppp2_backup_$(date +%Y%m%d_%H%M%S).db"
+    echo -e "   ✅ Backup criado"
+fi
 
 # Atualizar código
-echo -e "${BLUE}[2/4] Atualizando código...${NC}"
+echo -e "${BLUE}[2/5] Atualizando código...${NC}"
 if [ -d "$PPP_DIR/.git" ]; then
     cd "$PPP_DIR"
     git pull
@@ -51,28 +53,58 @@ else
     cp -r "$SOURCE_DIR/models" "$SOURCE_DIR/views" "$SOURCE_DIR/ui" "$SOURCE_DIR/main.py" "$PPP_DIR/"
 fi
 
-# Migrações
-echo -e "${BLUE}[3/4] Aplicando migrações...${NC}"
+# Migrações automáticas
+echo -e "${BLUE}[3/5] Aplicando migrações...${NC}"
 cd "$PPP_DIR"
 
-sqlite3 ppp.db "ALTER TABLE operacao ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-sqlite3 ppp.db "ALTER TABLE ambiente ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-sqlite3 ppp.db "ALTER TABLE funcao ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-sqlite3 ppp.db "ALTER TABLE colaborador ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-sqlite3 ppp.db "ALTER TABLE tarefa ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN altura_mm INTEGER;" 2>/dev/null
-sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN largura_mm INTEGER;" 2>/dev/null
-sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN profundidade_mm INTEGER;" 2>/dev/null
+# Verifica se o banco existe
+if [ -f "$PPP_DIR/ppp.db" ]; then
+    # Adiciona coluna potencia na tabela equipamento (se não existir)
+    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN potencia INTEGER DEFAULT 0;" 2>/dev/null && echo "   ✅ Coluna 'potencia' adicionada" || echo "   ✅ Coluna 'potencia' já existe"
+    
+    # Adiciona coluna tipo_energia na tabela equipamento (se não existir)
+    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN tipo_energia TEXT DEFAULT 'elétrica';" 2>/dev/null && echo "   ✅ Coluna 'tipo_energia' adicionada" || echo "   ✅ Coluna 'tipo_energia' já existe"
+    
+    # Adiciona coluna ativo nas tabelas (se não existirem)
+    sqlite3 ppp.db "ALTER TABLE operacao ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
+    sqlite3 ppp.db "ALTER TABLE ambiente ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
+    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
+    sqlite3 ppp.db "ALTER TABLE funcao ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
+    sqlite3 ppp.db "ALTER TABLE colaborador ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
+    sqlite3 ppp.db "ALTER TABLE tarefa ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
+    
+    # Adiciona colunas de dimensão (se não existirem)
+    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN altura_mm INTEGER;" 2>/dev/null
+    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN largura_mm INTEGER;" 2>/dev/null
+    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN profundidade_mm INTEGER;" 2>/dev/null
+    
+    echo -e "   ✅ Migrações aplicadas"
+else
+    echo -e "   ${YELLOW}⚠️  Banco de dados não encontrado. Execute install_ppp2.sh primeiro${NC}"
+fi
 
 # Atualizar executável
-echo -e "${BLUE}[4/4] Atualizando executável...${NC}"
-cat > /usr/local/bin/ppp2 << 'EOF'
+echo -e "${BLUE}[4/5] Atualizando executável...${NC}"
+cat > /usr/local/bin/ppp2 << EOF
 #!/bin/bash
-cd /opt/ppp2
-python main.py "$@"
+cd $PPP_DIR
+python main.py "\$@"
 EOF
 chmod +x /usr/local/bin/ppp2
+
+# Atualizar atalho no menu
+echo -e "${BLUE}[5/5] Atualizando atalho no menu...${NC}"
+cat > /usr/share/applications/ppp2.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=PPP2 - Palmas Project Planner
+Comment=Ferramenta de Viabilidade
+Exec=ppp2
+Icon=ppp2
+Terminal=false
+Categories=Office;Business;Management;
+StartupNotify=true
+EOF
 
 echo ""
 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"

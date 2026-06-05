@@ -248,8 +248,8 @@ FILOSOFIA:
             
         elif self.current_crud == "equipamento":
             dados = CrudEquipamento.listar_todos()
-            headers = ["ID", "Nome", "Marca", "Modelo", "Capacidade", "Preço", "Ambiente", "Ativo"]
-            keys = ["id", "nome", "marca", "modelo", "capacidade", "preco_estimado", "ambiente_nome", "ativo"]
+            headers = ["ID", "Nome", "Marca", "Modelo", "Capacidade", "Potência", "Energia", "Preço", "Ambiente", "Ativo"]
+            keys = ["id", "nome", "marca", "modelo", "capacidade", "potencia", "tipo_energia", "preco_estimado", "ambiente_nome", "ativo"]
             
         elif self.current_crud == "funcao":
             dados = CrudFuncao.listar_todos()

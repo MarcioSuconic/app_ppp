@@ -73,13 +73,11 @@ class CrudOperacao:
             conn.close()
             return False, "Não é possível excluir: existem ambientes vinculados a esta operação. Desative em vez de excluir."
         
-        # Verifica se existem produtos vinculados
         cursor.execute("SELECT COUNT(*) FROM operacao_produto WHERE operacao_id = ?", (oid,))
         if cursor.fetchone()[0] > 0:
             conn.close()
             return False, "Não é possível excluir: existem produtos vinculados a esta operação. Desative em vez de excluir."
         
-        # Verifica se existem serviços vinculados
         cursor.execute("SELECT COUNT(*) FROM operacao_servico WHERE operacao_id = ?", (oid,))
         if cursor.fetchone()[0] > 0:
             conn.close()
@@ -96,12 +94,10 @@ class CrudOperacao:
     
     @staticmethod
     def listar_produtos(operacao_id, apenas_ativos=True):
-        """Retorna os produtos vinculados a uma operação"""
         from models.produto import CrudProduto
         return CrudProduto.listar_por_operacao(operacao_id, apenas_ativos)
     
     @staticmethod
     def listar_servicos(operacao_id, apenas_ativos=True):
-        """Retorna os serviços vinculados a uma operação"""
         from models.servico import CrudServico
         return CrudServico.listar_por_operacao(operacao_id, apenas_ativos)
