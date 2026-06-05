@@ -88,6 +88,12 @@ class MainWindow(QMainWindow):
         self.btn_resumo.setStyleSheet("padding: 10px; font-weight: bold; background-color: #3498db; color: white; font-size: 14px;")
         layout.addWidget(self.btn_resumo) 
         
+        # Botão Cardápio
+        self.btn_cardapio = QPushButton("📋 Cardápio por Operação")
+        self.btn_cardapio.clicked.connect(self.abrir_cardapio_operacao)
+        self.btn_cardapio.setStyleSheet("padding: 10px; font-weight: bold; background-color: #e67e22; color: white; font-size: 14px;")
+        layout.addWidget(self.btn_cardapio)
+        
         # Status
         self.status_label = QLabel("✅ CRUD ativo: OPERAÇÕES")
         self.status_label.setStyleSheet("padding: 5px; background-color: #ecf0f1;")
@@ -132,7 +138,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(btn_layout)
         
         self.carregar_tabela()
-        self.mostrar_intro()
+        self.mostrar_intro()              
     
     def criar_menu(self):
         menubar = QMenuBar(self)
@@ -179,6 +185,11 @@ class MainWindow(QMainWindow):
     def mostrar_intro(self):
         intro = "PPP - Palmas Project Planner | Ferramenta de Viabilidade | CNPJ único | Operações: Bar, Harmony, Lanchonete/Café, Ateliê"
         self.intro_label.setText(intro)
+        
+    def abrir_cardapio_operacao(self):
+        from ui.dialogs.cardapio_operacao_dialog import CardapioOperacaoDialog
+        dialog = CardapioOperacaoDialog(self)
+        dialog.exec()
     
     def mostrar_intro_dialog(self):
         intro_texto = """
