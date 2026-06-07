@@ -6,7 +6,7 @@ class CrudEquipamento:
     def criar(nome, marca="", modelo="", capacidade="", preco_estimado=0.0,
               data_compra="", fornecedor="", numero_serie="", ultima_manutencao="", 
               observacao="", ambiente_id=None, altura_mm=None, largura_mm=None,
-              profundidade_mm=None, ativo=True):
+              profundidade_mm=None, potencia=0, tipo_energia="elétrica", ativo=True):
         
         if not nome or len(nome.strip()) == 0:
             return False, "Nome do equipamento não pode estar vazio."
@@ -18,11 +18,11 @@ class CrudEquipamento:
                 INSERT INTO equipamento 
                 (nome, marca, modelo, capacidade, preco_estimado, data_compra, 
                  fornecedor, numero_serie, ultima_manutencao, observacao, ambiente_id,
-                 altura_mm, largura_mm, profundidade_mm, ativo)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 altura_mm, largura_mm, profundidade_mm, potencia, tipo_energia, ativo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (nome.strip(), marca, modelo, capacidade, preco_estimado, data_compra,
                   fornecedor, numero_serie, ultima_manutencao, observacao, ambiente_id,
-                  altura_mm, largura_mm, profundidade_mm, 1 if ativo else 0))
+                  altura_mm, largura_mm, profundidade_mm, potencia, tipo_energia, 1 if ativo else 0))
             conn.commit()
             return True, "Equipamento criado com sucesso."
         except Exception as e:
@@ -61,7 +61,7 @@ class CrudEquipamento:
     def atualizar(eid, nome, marca="", modelo="", capacidade="", preco_estimado=0.0,
                   data_compra="", fornecedor="", numero_serie="", ultima_manutencao="", 
                   observacao="", ambiente_id=None, altura_mm=None, largura_mm=None,
-                  profundidade_mm=None, ativo=True):
+                  profundidade_mm=None, potencia=0, tipo_energia="elétrica", ativo=True):
         
         if not nome or len(nome.strip()) == 0:
             return False, "Nome do equipamento não pode estar vazio."
@@ -71,15 +71,15 @@ class CrudEquipamento:
         try:
             cursor.execute("""
                 UPDATE equipamento 
-                SET nome=?, marca=?, modelo=?, capacidade=?, preco_estimado=?, 
+                SET nome=?, marca=?, modelo=?, capacidadewe=?, preco_estimado=?, 
                     data_compra=?, fornecedor=?, numero_serie=?, ultima_manutencao=?, 
                     observacao=?, ambiente_id=?, altura_mm=?, largura_mm=?, 
-                    profundidade_mm=?, ativo=?
+                    profundidade_mm=?, potencia=?, tipo_energia=?, ativo=?
                 WHERE id=?
             """, (nome.strip(), marca, modelo, capacidade, preco_estimado,
                   data_compra, fornecedor, numero_serie, ultima_manutencao,
                   observacao, ambiente_id, altura_mm, largura_mm, profundidade_mm,
-                  1 if ativo else 0, eid))
+                  potencia, tipo_energia, 1 if ativo else 0, eid))
             conn.commit()
             return True, "Equipamento atualizado com sucesso."
         except Exception as e:
