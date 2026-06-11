@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QComboBox,
 from PySide6.QtCore import Qt, QAbstractTableModel
 from models.operacao import CrudOperacao
 from views.resumo_operacao import ResumoOperacao
-from views.excel_export import gerar_relatorio_excel_com_abas_operacao
+from views.exportar_cardapio_excel_formatado import gerar_cardapio_excel_formatado
 
 class TableModelResumo(QAbstractTableModel):
     def __init__(self, data, headers):
@@ -56,7 +56,7 @@ class ResumoOperacaoDialog(QDialog):
         
         # Botões: Exportar e Fechar
         botoes_layout = QHBoxLayout()
-        self.btn_exportar = QPushButton("📊 Exportar Resumo para Excel")
+        self.btn_exportar = QPushButton("📊 Exportar Cardápio para Excel")
         self.btn_exportar.clicked.connect(self.exportar_excel)
         self.btn_fechar = QPushButton("✖️ Fechar")
         self.btn_fechar.clicked.connect(self.close)
@@ -68,22 +68,17 @@ class ResumoOperacaoDialog(QDialog):
         # Abas
         self.tab_widget = QTabWidget()
         
-        # Aba 1: Tarefas (nova!)
+        # Aba Tarefas
         self.tab_tarefas = QTableView()
         self.tab_tarefas.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.tab_widget.addTab(self.tab_tarefas, "✅ Tarefas")       
+        self.tab_widget.addTab(self.tab_tarefas, "✅ Tarefas")
         
-        # Aba 2: Cardápio (nova!)
-        self.tab_cardapio = QTableView()
-        self.tab_cardapio.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.tab_widget.addTab(self.tab_cardapio, "📋 Cardápio")
-        
-        # Aba 3: Equipamentos
+        # Aba Equipamentos
         self.tab_equipamentos = QTableView()
         self.tab_equipamentos.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tab_widget.addTab(self.tab_equipamentos, "🔧 Equipamentos")
         
-        # Aba 4: Horas por Função
+        # Aba Horas por Função
         self.tab_horas = QTableView()
         self.tab_horas.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tab_widget.addTab(self.tab_horas, "⏱️ Horas/Mês por Função")
@@ -95,15 +90,15 @@ class ResumoOperacaoDialog(QDialog):
     
     def carregar_operacoes(self):
         self.operacao_combo.clear()
-        for op in CrudOperacao.listar_todos():
+        for op in CrudOperacao.listar_todos(apenas_ativos=True):
             self.operacao_combo.addItem(op["nome"], op["id"])
-            
+    
     def carregar_resumos(self):
         operacao_id = self.operacao_combo.currentData()
         if not operacao_id:
             return
         
-        # ========== TAREFAS ==========
+        # Tarefas da operação
         tarefas = ResumoOperacao.get_tarefas_por_operacao(operacao_id)
         if tarefas:
             headers = ["ID", "Tarefa", "Duração (h)", "Frequência", "Vezes/Mês", "Horas/Mês", "Função", "Colaborador", "Ambiente", "Equipamento", "Obs"]
@@ -114,42 +109,7 @@ class ResumoOperacaoDialog(QDialog):
         else:
             self.tab_tarefas.setModel(None)
         
-        # ========== CARDÁPIO (PRODUTOS E SERVIÇOS) ==========
-        produtos = ResumoOperacao.get_produtos_por_operacao(operacao_id)
-        servicos = ResumoOperacao.get_servicos_por_operacao(operacao_id)
-        
-        dados_cardapio = []
-        for s in servicos:
-            dados_cardapio.append({
-                "tipo": "🔧 Serviço",
-                "categoria": s["categoria"],
-                "nome": s["nome"],
-                "descricao": s["descricao"],
-                "preco": f"R$ {s['preco']:.2f}",
-                "custo": f"R$ {s['custo']:.2f}",
-                "unidade_duracao": f"{s['duracao']} min"
-            })
-        for p in produtos:
-            dados_cardapio.append({
-                "tipo": "🍺 Produto",
-                "categoria": p["categoria"],
-                "nome": p["nome"],
-                "descricao": p["descricao"],
-                "preco": f"R$ {p['preco']:.2f}",
-                "custo": f"R$ {p['custo']:.2f}",
-                "unidade_duracao": p["unidade"]
-            })
-        
-        if dados_cardapio:
-            headers = ["Tipo", "Categoria", "Nome", "Descrição", "Preço", "Custo", "Unidade/Duração"]
-            model = TableModelResumo(dados_cardapio, headers)
-            self.tab_cardapio.setModel(model)
-            for i in range(len(headers)):
-                self.tab_cardapio.horizontalHeader().setSectionResizeMode(i, QHeaderView.Stretch)
-        else:
-            self.tab_cardapio.setModel(None)
-        
-        # ========== EQUIPAMENTOS ==========
+        # Equipamentos
         equipamentos = ResumoOperacao.get_equipamentos_por_operacao(operacao_id)
         if equipamentos:
             headers = ["ID", "Nome", "Marca", "Modelo", "Capacidade", "Ambiente", "Preço (R$)"]
@@ -158,11 +118,11 @@ class ResumoOperacaoDialog(QDialog):
                 dados.append({
                     "id": eq["id"],
                     "nome": eq["nome"],
-                    "marca": eq["marca"] or "-",
-                    "modelo": eq["modelo"] or "-",
-                    "capacidade": eq["capacidade"] or "-",
-                    "ambiente": eq["ambiente_nome"] or "-",
-                    "preco": eq["preco_estimado"] or 0
+                    "marca": eq.get("marca") or "-",
+                    "modelo": eq.get("modelo") or "-",
+                    "capacidade": eq.get("capacidade") or "-",
+                    "ambiente": eq.get("ambiente_nome") or "-",
+                    "preco": eq.get("preco_estimado") or 0
                 })
             model = TableModelResumo(dados, headers)
             self.tab_equipamentos.setModel(model)
@@ -171,7 +131,7 @@ class ResumoOperacaoDialog(QDialog):
         else:
             self.tab_equipamentos.setModel(None)
         
-        # ========== HORAS POR FUNÇÃO ==========
+        # Horas por função
         horas = ResumoOperacao.get_horas_por_funcao_na_operacao(operacao_id)
         if horas:
             headers = ["Função", "Horas/Mês"]
@@ -181,7 +141,7 @@ class ResumoOperacaoDialog(QDialog):
                 self.tab_horas.horizontalHeader().setSectionResizeMode(i, QHeaderView.Stretch)
         else:
             self.tab_horas.setModel(None)
-            
+    
     def exportar_excel(self):
         operacao_id = self.operacao_combo.currentData()
         operacao_nome = self.operacao_combo.currentText()
@@ -190,7 +150,8 @@ class ResumoOperacaoDialog(QDialog):
             return
         
         try:
-            caminho = gerar_relatorio_excel_com_abas_operacao(operacao_id, operacao_nome)
-            QMessageBox.information(self, "✅ Exportado", f"Relatório da operação {operacao_nome}\ngerado em:\n{caminho}")
+            caminho = gerar_cardapio_excel_formatado(operacao_id, operacao_nome)
+            QMessageBox.information(self, "✅ Exportado", 
+                                   f"Cardápio da operação {operacao_nome}\ngerado em:\n{caminho}")
         except Exception as e:
             QMessageBox.critical(self, "Erro", f"Falha ao exportar:\n{str(e)}")

@@ -12,7 +12,8 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
     
-    # ========== TABELAS EXISTENTES (mantidas) ==========
+    # ========== TABELAS PRINCIPAIS ==========
+    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS operacao (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,10 +35,17 @@ def init_db():
     ''')
     
     cursor.execute('''
+        CREATE TABLE IF NOT EXISTS marca (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL UNIQUE
+        )
+    ''')
+    
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS equipamento (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
-            marca TEXT,
+            marca_id INTEGER,
             modelo TEXT,
             capacidade TEXT,
             preco_estimado REAL,
@@ -50,8 +58,35 @@ def init_db():
             altura_mm INTEGER,
             largura_mm INTEGER,
             profundidade_mm INTEGER,
+            potencia INTEGER DEFAULT 0,
+            tipo_energia TEXT DEFAULT 'elétrica',
             ativo BOOLEAN DEFAULT 1,
-            FOREIGN KEY (ambiente_id) REFERENCES ambiente (id)
+            FOREIGN KEY (marca_id) REFERENCES marca(id),
+            FOREIGN KEY (ambiente_id) REFERENCES ambiente(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tipo_ferramenta (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL UNIQUE
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ferramenta (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            descricao TEXT NOT NULL,
+            tipo_ferramenta_id INTEGER NOT NULL,
+            marca_id INTEGER,
+            valor_compra REAL DEFAULT 0.0,
+            data_compra TEXT,
+            ambiente_id INTEGER,
+            observacao TEXT,
+            ativo BOOLEAN DEFAULT 1,
+            FOREIGN KEY (tipo_ferramenta_id) REFERENCES tipo_ferramenta(id),
+            FOREIGN KEY (marca_id) REFERENCES marca(id),
+            FOREIGN KEY (ambiente_id) REFERENCES ambiente(id)
         )
     ''')
     
@@ -104,7 +139,6 @@ def init_db():
         )
     ''')
     
-    # ========== NOVAS TABELAS ==========
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS unidade (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -210,7 +244,7 @@ def init_db():
         )
     ''')
     
-    # ========== DADOS INICIAIS (se vazio) ==========
+    # ========== DADOS INICIAIS ==========
     
     # Unidades
     cursor.execute("SELECT COUNT(*) FROM unidade")
@@ -254,7 +288,7 @@ def init_db():
         ]
         cursor.executemany("INSERT INTO categoria_servico (nome, descricao) VALUES (?, ?)", cat_serv)
     
-    # Operações padrão (se vazio)
+    # Operações padrão
     cursor.execute("SELECT COUNT(*) FROM operacao")
     if cursor.fetchone()[0] == 0:
         op_padrao = [
@@ -265,7 +299,7 @@ def init_db():
         ]
         cursor.executemany("INSERT INTO operacao (nome, descricao) VALUES (?, ?)", op_padrao)
     
-    # Funções básicas (se vazio)
+    # Funções básicas
     cursor.execute("SELECT COUNT(*) FROM funcao")
     if cursor.fetchone()[0] == 0:
         funcoes = [
@@ -275,6 +309,17 @@ def init_db():
         ]
         for f in funcoes:
             cursor.execute("INSERT INTO funcao (nome) VALUES (?)", (f,))
+    
+    # Tipos de Ferramenta padrão
+    cursor.execute("SELECT COUNT(*) FROM tipo_ferramenta")
+    if cursor.fetchone()[0] == 0:
+        tipos = [
+            ('Corte (tesoura, estilete)',),
+            ('Cozinha (colheres, espátulas)',),
+            ('Manutenção (chaves, alicates)',),
+            ('Costura (agulhas, dedais)',)
+        ]
+        cursor.executemany("INSERT INTO tipo_ferramenta (nome) VALUES (?)", tipos)
     
     conn.commit()
     conn.close()

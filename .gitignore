@@ -1,8 +1,8 @@
 # Banco de dados
-*.db
+#*.db
 
-ppp.db
-ppp2.db
+# ppp.db
+# ppp2.db
 
 # Pastas de dados
 relatorios/

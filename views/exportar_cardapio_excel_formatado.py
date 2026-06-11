@@ -5,21 +5,20 @@ import os
 from views.cardapio_operacao import CardapioOperacao
 
 def gerar_cardapio_excel_formatado(operacao_id, operacao_nome, caminho_saida=None):
-    """
-    Gera Excel com cardápio no formato:
-    
-    Categoria
-       produto/serviço
-          descrição   preço
-    """
+    """Gera Excel com cardápio no formato indentado"""
     
     if not caminho_saida:
         os.makedirs('relatorios', exist_ok=True)
-        caminho_saida = f'relatorios/Cardapio_{operacao_nome}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        # Remove caracteres inválidos para nome de arquivo
+        nome_limpo = operacao_nome.replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
+        caminho_saida = f'relatorios/Cardapio_{nome_limpo}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = f"Cardápio - {operacao_nome[:20]}"
+    
+    # Remove caracteres inválidos para título de aba do Excel
+    titulo_aba = operacao_nome.replace('/', '_').replace('\\', '_').replace('*', '_').replace('?', '_').replace(':', '_').replace('[', '_').replace(']', '_')
+    ws.title = f"Cardápio - {titulo_aba[:20]}"
     
     # Estilos
     titulo_font = Font(name='Arial', size=16, bold=True)
@@ -47,7 +46,6 @@ def gerar_cardapio_excel_formatado(operacao_id, operacao_nome, caminho_saida=Non
         ws[f'A{linha}'].font = Font(size=14, bold=True)
         linha += 1
         
-        # Agrupar por categoria
         categorias = {}
         for p in produtos:
             cat = p['categoria']
@@ -56,19 +54,16 @@ def gerar_cardapio_excel_formatado(operacao_id, operacao_nome, caminho_saida=Non
             categorias[cat].append(p)
         
         for categoria, itens in categorias.items():
-            # Categoria
             ws.merge_cells(f'A{linha}:B{linha}')
             ws[f'A{linha}'].value = categoria
             ws[f'A{linha}'].font = categoria_font
             linha += 1
             
             for item in itens:
-                # Nome do produto (com indentação de 3 espaços)
                 ws[f'A{linha}'].value = f'   {item["nome"]}'
                 ws[f'A{linha}'].font = produto_font
                 linha += 1
                 
-                # Descrição e preço na mesma linha (com indentação de 6 espaços)
                 descricao = item['descricao'] if item['descricao'] != '-' else ''
                 preco = f'R$ {item["preco"]:.2f}'
                 
@@ -83,9 +78,9 @@ def gerar_cardapio_excel_formatado(operacao_id, operacao_nome, caminho_saida=Non
                 ws[f'B{linha}'].alignment = Alignment(horizontal='right')
                 linha += 1
             
-            linha += 1  # Espaço entre categorias
+            linha += 1
         
-        linha += 1  # Espaço antes de serviços
+        linha += 1
     
     # ========== SERVIÇOS ==========
     servicos = CardapioOperacao.get_servicos_por_operacao(operacao_id)
@@ -103,21 +98,18 @@ def gerar_cardapio_excel_formatado(operacao_id, operacao_nome, caminho_saida=Non
             categorias[cat].append(s)
         
         for categoria, itens in categorias.items():
-            # Categoria
             ws.merge_cells(f'A{linha}:B{linha}')
             ws[f'A{linha}'].value = categoria
             ws[f'A{linha}'].font = categoria_font
             linha += 1
             
             for item in itens:
-                # Nome do serviço + duração (com indentação de 3 espaços)
                 nome = item['nome']
                 duracao = f' ({item["duracao"]} min)' if item['duracao'] > 0 else ''
                 ws[f'A{linha}'].value = f'   {nome}{duracao}'
                 ws[f'A{linha}'].font = produto_font
                 linha += 1
                 
-                # Descrição e preço na mesma linha (com indentação de 6 espaços)
                 descricao = item['descricao'] if item['descricao'] != '-' else ''
                 preco = f'R$ {item["preco"]:.2f}'
                 
@@ -132,9 +124,8 @@ def gerar_cardapio_excel_formatado(operacao_id, operacao_nome, caminho_saida=Non
                 ws[f'B{linha}'].alignment = Alignment(horizontal='right')
                 linha += 1
             
-            linha += 1  # Espaço entre categorias
+            linha += 1
     
-    # Ajustar largura
     ws.column_dimensions['A'].width = 60
     ws.column_dimensions['B'].width = 15
     

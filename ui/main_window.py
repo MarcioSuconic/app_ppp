@@ -144,8 +144,8 @@ class MainWindow(QMainWindow):
         layout.addLayout(btn_layout)
         
         self.carregar_tabela()
-        self.mostrar_intro()              
-    
+        self.mostrar_intro()
+                      
     def criar_menu(self):
         menubar = QMenuBar(self)
         self.setMenuBar(menubar)
@@ -179,15 +179,15 @@ class MainWindow(QMainWindow):
         acao_servico = prod_menu.addAction("🛠️ Serviços")
         acao_servico.triggered.connect(lambda: self.mudar_crud("servico"))
         
-        # Menu de Ativos (Marcas, Tipos, Ferramentas)
-        ativos_menu = QMenu("🔧 Ativos", self)
-        menubar.addMenu(ativos_menu)
+        # Menu de Ferramentas (antes chamado "Ativos")
+        ferramentas_menu = QMenu("🔧 Ferramentas", self)
+        menubar.addMenu(ferramentas_menu)
         
-        acao_marcas = ativos_menu.addAction("🏷️ Marcas")
+        acao_marcas = ferramentas_menu.addAction("🏷️ Marcas")
         acao_marcas.triggered.connect(lambda: self.mudar_crud("marca"))
-        acao_tipo_ferramenta = ativos_menu.addAction("📂 Tipos de Ferramenta")
+        acao_tipo_ferramenta = ferramentas_menu.addAction("📂 Tipos de Ferramenta")
         acao_tipo_ferramenta.triggered.connect(lambda: self.mudar_crud("tipo_ferramenta"))
-        acao_ferramenta = ativos_menu.addAction("🔧 Ferramentas")
+        acao_ferramenta = ferramentas_menu.addAction("🔧 Ferramentas")
         acao_ferramenta.triggered.connect(lambda: self.mudar_crud("ferramenta"))
         
         cadastro_menu.addSeparator()
