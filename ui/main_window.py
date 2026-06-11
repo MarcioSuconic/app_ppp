@@ -13,6 +13,9 @@ from models.categoria_produto import CrudCategoriaProduto
 from models.produto import CrudProduto
 from models.categoria_servico import CrudCategoriaServico
 from models.servico import CrudServico
+from models.marca import CrudMarca
+from models.tipo_ferramenta import CrudTipoFerramenta
+from models.ferramenta import CrudFerramenta
 from ui.dialogs.operacao_dialog import OperacaoDialog
 from ui.dialogs.ambiente_dialog import AmbienteDialog
 from ui.dialogs.equipamento_dialog import EquipamentoDialog
@@ -23,6 +26,9 @@ from ui.dialogs.categoria_produto_dialog import CategoriaProdutoDialog
 from ui.dialogs.produto_dialog import ProdutoDialog
 from ui.dialogs.categoria_servico_dialog import CategoriaServicoDialog
 from ui.dialogs.servico_dialog import ServicoDialog
+from ui.dialogs.marca_dialog import MarcaDialog
+from ui.dialogs.tipo_ferramenta_dialog import TipoFerramentaDialog
+from ui.dialogs.ferramenta_dialog import FerramentaDialog
 
 class TableModel(QAbstractTableModel):
     def __init__(self, data, headers, keys=None):
@@ -173,6 +179,17 @@ class MainWindow(QMainWindow):
         acao_servico = prod_menu.addAction("🛠️ Serviços")
         acao_servico.triggered.connect(lambda: self.mudar_crud("servico"))
         
+        # Menu de Ativos (Marcas, Tipos, Ferramentas)
+        ativos_menu = QMenu("🔧 Ativos", self)
+        menubar.addMenu(ativos_menu)
+        
+        acao_marcas = ativos_menu.addAction("🏷️ Marcas")
+        acao_marcas.triggered.connect(lambda: self.mudar_crud("marca"))
+        acao_tipo_ferramenta = ativos_menu.addAction("📂 Tipos de Ferramenta")
+        acao_tipo_ferramenta.triggered.connect(lambda: self.mudar_crud("tipo_ferramenta"))
+        acao_ferramenta = ativos_menu.addAction("🔧 Ferramentas")
+        acao_ferramenta.triggered.connect(lambda: self.mudar_crud("ferramenta"))
+        
         cadastro_menu.addSeparator()
         acao_sair = cadastro_menu.addAction("🚪 Sair")
         acao_sair.triggered.connect(self.close)
@@ -226,6 +243,9 @@ FILOSOFIA:
             "produto": "PRODUTOS",
             "categoria_servico": "CATEGORIAS DE SERVIÇOS",
             "servico": "SERVIÇOS",
+            "marca": "MARCAS",
+            "tipo_ferramenta": "TIPOS DE FERRAMENTA",
+            "ferramenta": "FERRAMENTAS",
         }
         self.status_label.setText(f"✅ CRUD ativo: {nomes.get(crud, '')}")
         self.setWindowTitle(f"PPP - {nomes.get(crud, '')}")
@@ -249,7 +269,7 @@ FILOSOFIA:
         elif self.current_crud == "equipamento":
             dados = CrudEquipamento.listar_todos()
             headers = ["ID", "Nome", "Marca", "Modelo", "Capacidade", "Potência", "Energia", "Preço", "Ambiente", "Ativo"]
-            keys = ["id", "nome", "marca", "modelo", "capacidade", "potencia", "tipo_energia", "preco_estimado", "ambiente_nome", "ativo"]
+            keys = ["id", "nome", "marca_nome", "modelo", "capacidade", "potencia", "tipo_energia", "preco_estimado", "ambiente_nome", "ativo"]
             
         elif self.current_crud == "funcao":
             dados = CrudFuncao.listar_todos()
@@ -297,6 +317,26 @@ FILOSOFIA:
                 d["categoria_nome"] = d.get("categoria_nome") or "-"
             headers = ["ID", "Nome", "Descrição", "Duração (min)", "Categoria", "Preço (R$)", "Custo (R$)", "Ativo"]
             keys = ["id", "nome", "descricao", "duracao_padrao_minutos", "categoria_nome", "preco_sugerido", "custo_producao", "ativo"]
+            
+        elif self.current_crud == "marca":
+            dados = CrudMarca.listar_todos()
+            headers = ["ID", "Nome"]
+            keys = ["id", "nome"]
+            
+        elif self.current_crud == "tipo_ferramenta":
+            dados = CrudTipoFerramenta.listar_todos()
+            headers = ["ID", "Nome"]
+            keys = ["id", "nome"]
+            
+        elif self.current_crud == "ferramenta":
+            dados = CrudFerramenta.listar_todos()
+            for d in dados:
+                d["valor_compra"] = d.get("valor_compra") or 0
+                d["ambiente_nome"] = d.get("ambiente_nome") or "-"
+                d["marca_nome"] = d.get("marca_nome") or "-"
+                d["tipo_nome"] = d.get("tipo_nome") or "-"
+            headers = ["ID", "Descrição", "Tipo", "Marca", "Valor (R$)", "Ambiente", "Ativo"]
+            keys = ["id", "descricao", "tipo_nome", "marca_nome", "valor_compra", "ambiente_nome", "ativo"]
         
         if not dados:
             dados = []
@@ -330,6 +370,12 @@ FILOSOFIA:
             dialog = CategoriaServicoDialog(self)
         elif self.current_crud == "servico":
             dialog = ServicoDialog(self)
+        elif self.current_crud == "marca":
+            dialog = MarcaDialog(self)
+        elif self.current_crud == "tipo_ferramenta":
+            dialog = TipoFerramentaDialog(self)
+        elif self.current_crud == "ferramenta":
+            dialog = FerramentaDialog(self)
         
         if dialog and dialog.exec():
             self.carregar_tabela()
@@ -370,6 +416,12 @@ FILOSOFIA:
             dialog = CategoriaServicoDialog(self, int(registro_id))
         elif self.current_crud == "servico":
             dialog = ServicoDialog(self, int(registro_id))
+        elif self.current_crud == "marca":
+            dialog = MarcaDialog(self, int(registro_id))
+        elif self.current_crud == "tipo_ferramenta":
+            dialog = TipoFerramentaDialog(self, int(registro_id))
+        elif self.current_crud == "ferramenta":
+            dialog = FerramentaDialog(self, int(registro_id))
         
         if dialog and dialog.exec():
             self.carregar_tabela()
@@ -411,6 +463,12 @@ FILOSOFIA:
                 sucesso, msg = CrudCategoriaServico.excluir(int(registro_id))
             elif self.current_crud == "servico":
                 sucesso, msg = CrudServico.excluir(int(registro_id))
+            elif self.current_crud == "marca":
+                sucesso, msg = CrudMarca.excluir(int(registro_id))
+            elif self.current_crud == "tipo_ferramenta":
+                sucesso, msg = CrudTipoFerramenta.excluir(int(registro_id))
+            elif self.current_crud == "ferramenta":
+                sucesso, msg = CrudFerramenta.excluir(int(registro_id))
             
             if sucesso:
                 QMessageBox.information(self, "Sucesso", msg)

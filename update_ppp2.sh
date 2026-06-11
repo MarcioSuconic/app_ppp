@@ -57,30 +57,13 @@ fi
 echo -e "${BLUE}[3/5] Aplicando migrações...${NC}"
 cd "$PPP_DIR"
 
-# Verifica se o banco existe
-if [ -f "$PPP_DIR/ppp.db" ]; then
-    # Adiciona coluna potencia na tabela equipamento (se não existir)
-    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN potencia INTEGER DEFAULT 0;" 2>/dev/null && echo "   ✅ Coluna 'potencia' adicionada" || echo "   ✅ Coluna 'potencia' já existe"
-    
-    # Adiciona coluna tipo_energia na tabela equipamento (se não existir)
-    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN tipo_energia TEXT DEFAULT 'elétrica';" 2>/dev/null && echo "   ✅ Coluna 'tipo_energia' adicionada" || echo "   ✅ Coluna 'tipo_energia' já existe"
-    
-    # Adiciona coluna ativo nas tabelas (se não existirem)
-    sqlite3 ppp.db "ALTER TABLE operacao ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-    sqlite3 ppp.db "ALTER TABLE ambiente ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-    sqlite3 ppp.db "ALTER TABLE funcao ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-    sqlite3 ppp.db "ALTER TABLE colaborador ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-    sqlite3 ppp.db "ALTER TABLE tarefa ADD COLUMN ativo BOOLEAN DEFAULT 1;" 2>/dev/null
-    
-    # Adiciona colunas de dimensão (se não existirem)
-    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN altura_mm INTEGER;" 2>/dev/null
-    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN largura_mm INTEGER;" 2>/dev/null
-    sqlite3 ppp.db "ALTER TABLE equipamento ADD COLUMN profundidade_mm INTEGER;" 2>/dev/null
-    
-    echo -e "   ✅ Migrações aplicadas"
+# Executa o script de migração de Marcas e Ferramentas
+if [ -f "$PPP_DIR/migrate_add_ferramentas.sql" ]; then
+    echo -e "   ${YELLOW}Executando migração: Marcas e Ferramentas...${NC}"
+    sqlite3 ppp.db < migrate_add_ferramentas.sql
+    echo -e "   ✅ Migração concluída"
 else
-    echo -e "   ${YELLOW}⚠️  Banco de dados não encontrado. Execute install_ppp2.sh primeiro${NC}"
+    echo -e "   ${YELLOW}⚠️  Arquivo migrate_add_ferramentas.sql não encontrado. Pulando...${NC}"
 fi
 
 # Atualizar executável

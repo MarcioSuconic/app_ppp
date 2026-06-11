@@ -3,7 +3,7 @@ import sqlite3
 
 class CrudEquipamento:
     @staticmethod
-    def criar(nome, marca="", modelo="", capacidade="", preco_estimado=0.0,
+    def criar(nome, marca_id=None, modelo="", capacidade="", preco_estimado=0.0,
               data_compra="", fornecedor="", numero_serie="", ultima_manutencao="", 
               observacao="", ambiente_id=None, altura_mm=None, largura_mm=None,
               profundidade_mm=None, potencia=0, tipo_energia="elétrica", ativo=True):
@@ -16,11 +16,11 @@ class CrudEquipamento:
         try:
             cursor.execute("""
                 INSERT INTO equipamento 
-                (nome, marca, modelo, capacidade, preco_estimado, data_compra, 
+                (nome, marca_id, modelo, capacidade, preco_estimado, data_compra, 
                  fornecedor, numero_serie, ultima_manutencao, observacao, ambiente_id,
                  altura_mm, largura_mm, profundidade_mm, potencia, tipo_energia, ativo)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (nome.strip(), marca, modelo, capacidade, preco_estimado, data_compra,
+            """, (nome.strip(), marca_id, modelo, capacidade, preco_estimado, data_compra,
                   fornecedor, numero_serie, ultima_manutencao, observacao, ambiente_id,
                   altura_mm, largura_mm, profundidade_mm, potencia, tipo_energia, 1 if ativo else 0))
             conn.commit()
@@ -35,8 +35,12 @@ class CrudEquipamento:
         conn = get_connection()
         cursor = conn.cursor()
         sql = """
-            SELECT e.*, a.nome as ambiente_nome, op.nome as operacao_nome
+            SELECT e.*, 
+                   m.nome as marca_nome,
+                   a.nome as ambiente_nome, 
+                   op.nome as operacao_nome
             FROM equipamento e
+            LEFT JOIN marca m ON e.marca_id = m.id
             LEFT JOIN ambiente a ON e.ambiente_id = a.id
             LEFT JOIN operacao op ON a.operacao_id = op.id
         """
@@ -52,13 +56,18 @@ class CrudEquipamento:
     def buscar_por_id(eid):
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM equipamento WHERE id = ?", (eid,))
+        cursor.execute("""
+            SELECT e.*, m.nome as marca_nome
+            FROM equipamento e
+            LEFT JOIN marca m ON e.marca_id = m.id
+            WHERE e.id = ?
+        """, (eid,))
         row = cursor.fetchone()
         conn.close()
         return dict(row) if row else None
     
     @staticmethod
-    def atualizar(eid, nome, marca="", modelo="", capacidade="", preco_estimado=0.0,
+    def atualizar(eid, nome, marca_id=None, modelo="", capacidade="", preco_estimado=0.0,
                   data_compra="", fornecedor="", numero_serie="", ultima_manutencao="", 
                   observacao="", ambiente_id=None, altura_mm=None, largura_mm=None,
                   profundidade_mm=None, potencia=0, tipo_energia="elétrica", ativo=True):
@@ -71,12 +80,12 @@ class CrudEquipamento:
         try:
             cursor.execute("""
                 UPDATE equipamento 
-                SET nome=?, marca=?, modelo=?, capacidadewe=?, preco_estimado=?, 
+                SET nome=?, marca_id=?, modelo=?, capacidade=?, preco_estimado=?, 
                     data_compra=?, fornecedor=?, numero_serie=?, ultima_manutencao=?, 
                     observacao=?, ambiente_id=?, altura_mm=?, largura_mm=?, 
                     profundidade_mm=?, potencia=?, tipo_energia=?, ativo=?
                 WHERE id=?
-            """, (nome.strip(), marca, modelo, capacidade, preco_estimado,
+            """, (nome.strip(), marca_id, modelo, capacidade, preco_estimado,
                   data_compra, fornecedor, numero_serie, ultima_manutencao,
                   observacao, ambiente_id, altura_mm, largura_mm, profundidade_mm,
                   potencia, tipo_energia, 1 if ativo else 0, eid))
@@ -91,22 +100,18 @@ class CrudEquipamento:
     def excluir(eid):
         conn = get_connection()
         cursor = conn.cursor()
-        
         cursor.execute("SELECT COUNT(*) FROM tarefa WHERE equipamento_id = ?", (eid,))
         if cursor.fetchone()[0] > 0:
             conn.close()
             return False, "Não é possível excluir: existem tarefas vinculadas. Desative."
-        
         cursor.execute("SELECT COUNT(*) FROM produto_equipamento WHERE equipamento_id = ?", (eid,))
         if cursor.fetchone()[0] > 0:
             conn.close()
             return False, "Não é possível excluir: existem produtos vinculados. Desative."
-        
         cursor.execute("SELECT COUNT(*) FROM servico_equipamento WHERE equipamento_id = ?", (eid,))
         if cursor.fetchone()[0] > 0:
             conn.close()
             return False, "Não é possível excluir: existem serviços vinculados. Desative."
-        
         try:
             cursor.execute("DELETE FROM equipamento WHERE id = ?", (eid,))
             conn.commit()
